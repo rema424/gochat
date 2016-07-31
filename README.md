@@ -7,8 +7,8 @@ Install
 ```
 apt-get install golang git
 
-export PATH=$PATH:/usr/local/go/bin
-export GOPATH=~/go
+export PATH="$PATH:/usr/local/go/bin"
+export GOPATH="$HOME/go"
 
 mkdir -p ~/go/bin ~/go/pkg ~/go/src/
 
