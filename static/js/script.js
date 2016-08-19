@@ -1,34 +1,40 @@
+var input = document.getElementById('message');
+var btn = document.getElementById('btn-send');
+var board = document.getElementById('board');
+
+// Display message
+function showMessage(msg) {
+    board.innerHTML += '<p>' + msg + '</p>';
+}
+
 // WebSocket init
 var socket = new WebSocket("ws://gochat.local/ws");
 
+// WebSocket events
 socket.onopen = function () {
-    console.log('Connected');
+    showMessage('Connected');
 };
 
 socket.onclose = function (event) {
     if (event.wasClean) {
-        console.log('Closed clean');
+        showMessage('Closed clean');
     } else {
-        console.log('Connection lost');
+        showMessage('Connection lost');
     }
     console.log('Code: ' + event.code + ', reason: ' + event.reason);
 };
 
 socket.onmessage = function (event) {
-    console.log('New data: ' + event.data);
+    showMessage('<< ' + event.data);
 };
 
 socket.onerror = function (error) {
-    console.log('Error: ' + error.message);
+    showMessage('Error: ' + error.message);
 };
 
-
-// Interface
-var input = document.getElementById('message');
-var btn = document.getElementById('btn-send');
-
+// Send message
 btn.addEventListener('click', function () {
     var message = input.value;
-    console.log('click');
-    socket.send('message');
+    socket.send(message);
+    showMessage('>> ' + message);
 });

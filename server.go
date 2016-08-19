@@ -18,6 +18,20 @@ var upgrader = websocket.Upgrader{
 }
 
 
+func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
+    fmt.Println(r.Method)
+    if r.Method == "POST" {
+        r.ParseForm()
+        fmt.Println(r.Form["login"][0])
+        fmt.Println(r.Form["password"][0])
+    }
+
+    context := make(map[string]string)
+    tpl, _ := template.ParseFiles("templates/login.html")
+    tpl.Execute(w, context)
+}
+
+
 func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
     context := make(map[string]string)
     tpl, _ := template.ParseFiles("templates/index.html")
@@ -70,6 +84,7 @@ func main() {
 
     // API
     http.HandleFunc("/ws", handlerWS)
+    http.HandleFunc("/login", handlerLoginPage)
     http.HandleFunc("/", handlerIndexPage)
 
     http.ListenAndServe(":"+port, nil)
