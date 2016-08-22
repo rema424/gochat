@@ -17,16 +17,40 @@ var upgrader = websocket.Upgrader{
     WriteBufferSize: 1024,
 }
 
+type user struct {
+    Name     string
+    Password string
+}
+
+var users = map[string]user{
+    "user1": {
+        Name: "User No.1",
+        Password: "pass1",
+    },
+    "user2": {
+        Name: "User No.2",
+        Password: "pass2",
+    },
+}
+
 
 func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
-    fmt.Println(r.Method)
+    context := make(map[string]string)
+
     if r.Method == "POST" {
         r.ParseForm()
-        fmt.Println(r.Form["login"][0])
-        fmt.Println(r.Form["password"][0])
+        login := r.Form["login"][0]
+        password := r.Form["password"][0]
+
+        user, ok := users[login]
+        if ok && user.Password == password {
+            http.Redirect(w, r, "/", 302)
+            return
+        } else {
+            context["err"] = "Login or password incorrect"
+        }
     }
 
-    context := make(map[string]string)
     tpl, _ := template.ParseFiles("templates/login.html")
     tpl.Execute(w, context)
 }
@@ -51,7 +75,7 @@ func handlerWS(w http.ResponseWriter, r *http.Request) {
     for {
         _, msg, err := conn.ReadMessage()
         if err != nil {
-            fmt.Println("err")
+            fmt.Println(err)
             delete(connections, conn)
             conn.Close()
             return

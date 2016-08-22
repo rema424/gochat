@@ -9,3 +9,7 @@
 #message {
     width: 450px;
 }
+
+.error {
+    color: red;
+}
