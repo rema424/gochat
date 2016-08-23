@@ -3,6 +3,9 @@ package main
 
 import (
     "fmt"
+    "strings"
+    "time"
+
     "net/http"
     "html/template"
 
@@ -22,6 +25,7 @@ type user struct {
     Password string
 }
 
+// Map instead of DB (for testing)
 var users = map[string]user{
     "user1": {
         Name: "User No.1",
@@ -31,6 +35,71 @@ var users = map[string]user{
         Name: "User No.2",
         Password: "pass2",
     },
+}
+
+var sessions = map[string][]string{
+    "user1": {"abc123", "def456"},
+}
+
+
+func removeSessionCookie(w http.ResponseWriter) {
+    cookie := &http.Cookie{
+        Name: "SessionID",
+        Value: "",
+        Expires: time.Now().AddDate(-1, 0, 0), // -1 year
+    }
+    http.SetCookie(w, cookie)
+}
+
+
+func handlerAuth(w http.ResponseWriter, r *http.Request) {
+    url := r.URL.Path
+
+    // No auth for login page
+    if url == "/login" {
+        handlerLoginPage(w, r)
+        return
+    }
+
+    // Check session in cookies
+    cookie, err := r.Cookie("SessionID")
+    if err != nil {
+        fmt.Println("No cookie found")
+        http.Redirect(w, r, "/login", 302)
+        return
+    }
+
+    session := strings.Split(cookie.Value, ":")
+    username := session[0]
+    sessionId := session[1]
+
+    sessionsFromDB, ok := sessions[username]
+    if !ok {
+        fmt.Println("No session found")
+        removeSessionCookie(w)
+        http.Redirect(w, r, "/login", 302)
+        return
+    }
+
+    found := false
+    for _, s := range sessionsFromDB {
+        if sessionId == s {
+            found = true
+        }
+    }
+    if !found {
+        fmt.Println("No session found")
+        removeSessionCookie(w)
+        http.Redirect(w, r, "/login", 302)
+        return
+    }
+
+    switch url {
+    case "/ws":
+        handlerWS(w, r)
+    default:
+        handlerIndexPage(w, r)
+    }
 }
 
 
@@ -44,6 +113,12 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
 
         user, ok := users[login]
         if ok && user.Password == password {
+            cookie := http.Cookie{
+                Name: "SessionID",
+                Value: login + ":123",
+                Expires: time.Now().Add(365 * 24 * time.Hour),
+            }
+            http.SetCookie(w, &cookie)
             http.Redirect(w, r, "/", 302)
             return
         } else {
@@ -106,10 +181,6 @@ func main() {
     // fileHandler := http.FileServer(fs)
     // http.Handle("/static/", http.StripPrefix("/static/", fileHandler))
 
-    // API
-    http.HandleFunc("/ws", handlerWS)
-    http.HandleFunc("/login", handlerLoginPage)
-    http.HandleFunc("/", handlerIndexPage)
-
+    http.HandleFunc("/", handlerAuth)
     http.ListenAndServe(":"+port, nil)
 }
