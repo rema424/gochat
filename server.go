@@ -42,6 +42,20 @@ var sessions = map[string][]string{
     "user1": {"abc123", "def456"},
 }
 
+const (
+    // Time allowed to write a message to the peer.
+    writeWait = 10 * time.Second
+
+    // Time allowed to read the next pong message from the peer.
+    pongWait = 5 * time.Second
+
+    // Send pings to peer with this period. Must be less than pongWait.
+    pingPeriod = (pongWait * 9) / 10
+
+    // Maximum message size allowed from peer.
+    maxMessageSize = 512
+)
+
 
 func removeSessionCookie(w http.ResponseWriter) {
     cookie := &http.Cookie{
@@ -97,9 +111,16 @@ func handlerAuth(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    if url == "/logout" {
+        removeSessionCookie(w)
+        http.Redirect(w, r, "/", 302)
+        return
+    }
+
     // User is not authenticated
     if err != nil {
         fmt.Println(err)
+        removeSessionCookie(w)
         http.Redirect(w, r, "/login", 302)
         return
     }
@@ -148,6 +169,57 @@ func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func readWS(conn *websocket.Conn) {
+    defer func() {
+        delete(connections, conn)
+        conn.Close()
+    }()
+
+    conn.SetReadLimit(maxMessageSize)
+    conn.SetReadDeadline(time.Now().Add(pongWait))
+    conn.SetPongHandler(func(string) error {
+        fmt.Println("Pong")
+        conn.SetReadDeadline(time.Now().Add(pongWait))
+        return nil
+    })
+
+    for {
+        _, msg, err := conn.ReadMessage()
+        if err != nil {
+            fmt.Println("Read error:")
+            fmt.Println(err)
+            return
+        }
+        fmt.Println(string(msg))
+        sendAll(msg)
+    }
+}
+
+
+func writeWS(conn *websocket.Conn) {
+    ticker := time.NewTicker(pingPeriod)
+
+    defer func() {
+        ticker.Stop()
+        delete(connections, conn)
+        conn.Close()
+    }()
+
+    for {
+        select {
+        case <-ticker.C:
+            fmt.Println("Ping")
+            err := conn.WriteMessage(websocket.PingMessage, []byte{})
+            if err != nil {
+                fmt.Println("Write error:")
+                fmt.Println(err)
+                return
+            }
+        }
+    }
+}
+
+
 func handlerWS(w http.ResponseWriter, r *http.Request) {
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
@@ -157,17 +229,8 @@ func handlerWS(w http.ResponseWriter, r *http.Request) {
     fmt.Println("Successfully connected")
     connections[conn] = true
 
-    for {
-        _, msg, err := conn.ReadMessage()
-        if err != nil {
-            fmt.Println(err)
-            delete(connections, conn)
-            conn.Close()
-            return
-        }
-        fmt.Println(string(msg))
-        sendAll(msg)
-    }
+    go writeWS(conn)
+    readWS(conn)
 }
 
 
