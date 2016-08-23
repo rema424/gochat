@@ -3,6 +3,7 @@ package main
 
 import (
     "fmt"
+    "errors"
     "strings"
     "time"
 
@@ -25,7 +26,7 @@ type user struct {
     Password string
 }
 
-// Map instead of DB (for testing)
+// Maps instead of DB (for testing)
 var users = map[string]user{
     "user1": {
         Name: "User No.1",
@@ -52,44 +53,53 @@ func removeSessionCookie(w http.ResponseWriter) {
 }
 
 
-func handlerAuth(w http.ResponseWriter, r *http.Request) {
-    url := r.URL.Path
-
-    // No auth for login page
-    if url == "/login" {
-        handlerLoginPage(w, r)
-        return
-    }
-
-    // Check session in cookies
+// Check session cookie and return user if authenticated
+func isLoggedIn(r *http.Request) (bool, error) {
     cookie, err := r.Cookie("SessionID")
     if err != nil {
-        fmt.Println("No cookie found")
-        http.Redirect(w, r, "/login", 302)
-        return
+        return false, errors.New("No cookie found")
     }
 
     session := strings.Split(cookie.Value, ":")
     username := session[0]
     sessionId := session[1]
 
-    sessionsFromDB, ok := sessions[username]
+    currentSessions, ok := sessions[username]
     if !ok {
-        fmt.Println("No session found")
-        removeSessionCookie(w)
-        http.Redirect(w, r, "/login", 302)
+        return false, errors.New("No session found")
+    }
+
+    for _, s := range currentSessions {
+        // Session found = user is authenticated
+        if sessionId == s {
+            return true, nil
+        }
+    }
+
+    return false, errors.New("No session found")
+}
+
+
+func handlerAuth(w http.ResponseWriter, r *http.Request) {
+    url := r.URL.Path
+
+    // Check auth
+    logged, err := isLoggedIn(r)
+
+    // No auth for login page
+    if url == "/login" && !logged {
+        if logged {
+            fmt.Println("Already logged in")
+            http.Redirect(w, r, "/", 302)
+        } else {
+            handlerLoginPage(w, r)
+        }
         return
     }
 
-    found := false
-    for _, s := range sessionsFromDB {
-        if sessionId == s {
-            found = true
-        }
-    }
-    if !found {
-        fmt.Println("No session found")
-        removeSessionCookie(w)
+    // User is not authenticated
+    if err != nil {
+        fmt.Println(err)
         http.Redirect(w, r, "/login", 302)
         return
     }
@@ -115,7 +125,7 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
         if ok && user.Password == password {
             cookie := http.Cookie{
                 Name: "SessionID",
-                Value: login + ":123",
+                Value: login + ":abc123",
                 Expires: time.Now().Add(365 * 24 * time.Hour),
             }
             http.SetCookie(w, &cookie)
