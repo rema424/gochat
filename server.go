@@ -1,60 +1,38 @@
 package main
 
-
 import (
     "fmt"
     "errors"
     "strings"
     "time"
-
     "net/http"
     "html/template"
 
-    "github.com/gorilla/websocket"
+    "github.com/gorilla/context"
 )
 
-
-var connections = make(map[*websocket.Conn]bool)
-
-var upgrader = websocket.Upgrader{
-    ReadBufferSize:  1024,
-    WriteBufferSize: 1024,
-}
-
-type user struct {
-    Name     string
+type User struct {
+    FullName string
+    Username string
     Password string
 }
 
 // Maps instead of DB (for testing)
-var users = map[string]user{
+var users = map[string]User{
     "user1": {
-        Name: "User No.1",
+        Username: "user1",
+        FullName: "User No.1",
         Password: "pass1",
     },
     "user2": {
-        Name: "User No.2",
+        Username: "user2",
+        FullName: "User No.2",
         Password: "pass2",
     },
 }
-
 var sessions = map[string][]string{
     "user1": {"abc123", "def456"},
 }
-
-const (
-    // Time allowed to write a message to the peer.
-    writeWait = 10 * time.Second
-
-    // Time allowed to read the next pong message from the peer.
-    pongWait = 5 * time.Second
-
-    // Send pings to peer with this period. Must be less than pongWait.
-    pingPeriod = (pongWait * 9) / 10
-
-    // Maximum message size allowed from peer.
-    maxMessageSize = 512
-)
 
 
 func removeSessionCookie(w http.ResponseWriter) {
@@ -67,11 +45,17 @@ func removeSessionCookie(w http.ResponseWriter) {
 }
 
 
-// Check session cookie and return user if authenticated
-func isLoggedIn(r *http.Request) (bool, error) {
+// Check session cookie
+func authenticate(r *http.Request) (*User, error) {
+    emptyUser := &User{
+        FullName: "",
+        Username: "",
+        Password: "",
+    }
+
     cookie, err := r.Cookie("SessionID")
     if err != nil {
-        return false, errors.New("No cookie found")
+        return emptyUser, errors.New("No cookie found")
     }
 
     session := strings.Split(cookie.Value, ":")
@@ -80,56 +64,38 @@ func isLoggedIn(r *http.Request) (bool, error) {
 
     currentSessions, ok := sessions[username]
     if !ok {
-        return false, errors.New("No session found")
+        return emptyUser, errors.New("No session found")
     }
 
     for _, s := range currentSessions {
         // Session found = user is authenticated
         if sessionId == s {
-            return true, nil
+            user := users[username]
+            return &user, nil
         }
     }
 
-    return false, errors.New("No session found")
+    return emptyUser, errors.New("No session found")
 }
 
 
-func handlerAuth(w http.ResponseWriter, r *http.Request) {
-    url := r.URL.Path
+// Middleware for authentication
+// func authMiddleware(w http.ResponseWriter, r *http.Request, hub *Hub) {
+func authMiddleware(handler http.HandlerFunc) http.HandlerFunc {
+    return func(w http.ResponseWriter, r *http.Request) {
+        // Check auth
+        user, err := authenticate(r)
 
-    // Check auth
-    logged, err := isLoggedIn(r)
-
-    // No auth for login page
-    if url == "/login" && !logged {
-        if logged {
-            fmt.Println("Already logged in")
-            http.Redirect(w, r, "/", 302)
-        } else {
-            handlerLoginPage(w, r)
+        // User is not authenticated
+        if err != nil {
+            fmt.Println(err)
+            removeSessionCookie(w)
+            http.Redirect(w, r, "/login", 302)
+            return
         }
-        return
-    }
 
-    if url == "/logout" {
-        removeSessionCookie(w)
-        http.Redirect(w, r, "/", 302)
-        return
-    }
-
-    // User is not authenticated
-    if err != nil {
-        fmt.Println(err)
-        removeSessionCookie(w)
-        http.Redirect(w, r, "/login", 302)
-        return
-    }
-
-    switch url {
-    case "/ws":
-        handlerWS(w, r)
-    default:
-        handlerIndexPage(w, r)
+        context.Set(r, "User", user)
+        handler(w, r)
     }
 }
 
@@ -162,98 +128,15 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func handlerLogout(w http.ResponseWriter, r *http.Request) {
+    removeSessionCookie(w)
+    http.Redirect(w, r, "/login", 302)
+    return
+}
+
+
 func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
     context := make(map[string]string)
     tpl, _ := template.ParseFiles("templates/index.html")
     tpl.Execute(w, context)
-}
-
-
-func readWS(conn *websocket.Conn) {
-    defer func() {
-        delete(connections, conn)
-        conn.Close()
-    }()
-
-    conn.SetReadLimit(maxMessageSize)
-    conn.SetReadDeadline(time.Now().Add(pongWait))
-    conn.SetPongHandler(func(string) error {
-        fmt.Println("Pong")
-        conn.SetReadDeadline(time.Now().Add(pongWait))
-        return nil
-    })
-
-    for {
-        _, msg, err := conn.ReadMessage()
-        if err != nil {
-            fmt.Println("Read error:")
-            fmt.Println(err)
-            return
-        }
-        fmt.Println(string(msg))
-        sendAll(msg)
-    }
-}
-
-
-func writeWS(conn *websocket.Conn) {
-    ticker := time.NewTicker(pingPeriod)
-
-    defer func() {
-        ticker.Stop()
-        delete(connections, conn)
-        conn.Close()
-    }()
-
-    for {
-        select {
-        case <-ticker.C:
-            fmt.Println("Ping")
-            err := conn.WriteMessage(websocket.PingMessage, []byte{})
-            if err != nil {
-                fmt.Println("Write error:")
-                fmt.Println(err)
-                return
-            }
-        }
-    }
-}
-
-
-func handlerWS(w http.ResponseWriter, r *http.Request) {
-    conn, err := upgrader.Upgrade(w, r, nil)
-    if err != nil {
-        fmt.Println(err)
-        return
-    }
-    fmt.Println("Successfully connected")
-    connections[conn] = true
-
-    go writeWS(conn)
-    readWS(conn)
-}
-
-
-func sendAll(msg []byte) {
-    for conn := range connections {
-        err := conn.WriteMessage(websocket.TextMessage, msg)
-        if err != nil {
-            delete(connections, conn)
-            conn.Close()
-        }
-    }
-}
-
-
-func main() {
-    port := "8080"
-    fmt.Printf("Server is running on %s port...\n", port)
-
-    // Static files
-    // fs := http.Dir("static")
-    // fileHandler := http.FileServer(fs)
-    // http.Handle("/static/", http.StripPrefix("/static/", fileHandler))
-
-    http.HandleFunc("/", handlerAuth)
-    http.ListenAndServe(":"+port, nil)
 }

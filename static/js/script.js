@@ -25,7 +25,7 @@ socket.onclose = function (event) {
 };
 
 socket.onmessage = function (event) {
-    showMessage('<< ' + event.data);
+    showMessage('>> ' + event.data);
 };
 
 socket.onerror = function (error) {
@@ -36,5 +36,4 @@ socket.onerror = function (error) {
 btn.addEventListener('click', function () {
     var message = input.value;
     socket.send(message);
-    showMessage('>> ' + message);
 });
