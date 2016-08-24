@@ -1,12 +1,28 @@
+// Chat app entry point.
+
 package main
 
 import (
-    "fmt"
+    "log"
     "net/http"
+    "os"
 )
 
 
 func main() {
+    var err error
+
+    // Log file
+    // f, err = os.OpenFile("log.txt", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0644)
+    // if err != nil {
+    //     log.Println("Cannot open log file for wrinting: ", err)
+    // }
+    // defer f.Close()
+    // log.SetOutput(f)
+
+    // Log to stdout
+    log.SetOutput(os.Stdout)
+
     // Static files
     // fs := http.Dir("static")
     // fileHandler := http.FileServer(fs)
@@ -31,6 +47,9 @@ func main() {
 
     // Run server
     port := "8080"
-    fmt.Printf("Server is running on %s port...\n", port)
-    http.ListenAndServe(":"+port, nil)
+    log.Printf("Server is running on %s port...\n", port)
+    err = http.ListenAndServe(":"+port, nil)
+    if err != nil {
+        log.Println("ListenAndServe error: ", err)
+    }
 }

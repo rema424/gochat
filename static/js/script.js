@@ -16,16 +16,16 @@ socket.onopen = function () {
 };
 
 socket.onclose = function (event) {
+    msg = '(code: ' + event.code + ', reason:' + event.reason + ')';
     if (event.wasClean) {
-        showMessage('Closed clean');
+        showMessage('Closed clean ' + msg);
     } else {
-        showMessage('Connection lost');
+        showMessage('Connection lost ' + msg);
     }
-    console.log('Code: ' + event.code + ', reason: ' + event.reason);
 };
 
 socket.onmessage = function (event) {
-    showMessage('>> ' + event.data);
+    showMessage(event.data);
 };
 
 socket.onerror = function (error) {

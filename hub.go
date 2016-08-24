@@ -1,8 +1,10 @@
+// Hub transfers messages between client using channels
+// and stores list of all clients.
+
 package main
 
 import (
-    "fmt"
-
+    "log"
     "github.com/gorilla/websocket"
 )
 
@@ -19,17 +21,17 @@ func (h *Hub) run() {
     for {
         select {
         case client := <-h.register:
-            fmt.Println("Registered: ", client)
+            log.Println("Registered: "+client.user.Username)
             h.clients[client] = true
         case client := <-h.unregister:
-            fmt.Println("Unregistered: ", client)
+            log.Println("Unregistered: "+client.user.Username)
             client.conn.Close()
             delete(h.clients, client)
         case msg := <-h.broadcast:
             for client := range h.clients {
                 err := client.conn.WriteMessage(websocket.TextMessage, msg)
                 if err != nil {
-                    fmt.Println("Error while sending: ", err)
+                    log.Println("Write error: ", err)
                     client.conn.Close()
                     delete(h.clients, client)
                 }

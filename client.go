@@ -1,17 +1,18 @@
+// Serving client connecions.
+
 package main
 
 import (
-    "fmt"
-    "time"
+    "log"
     "net/http"
+    "time"
 
-    "github.com/gorilla/websocket"
     "github.com/gorilla/context"
+    "github.com/gorilla/websocket"
 )
 
 
 const (
-    writeWait = 10 * time.Second
     pongWait = 3 * time.Second
     pingPeriod = 2 * time.Second
     maxMessageSize = 512
@@ -38,7 +39,7 @@ func (c *Client) readWS() {
     c.conn.SetReadLimit(maxMessageSize)
     c.conn.SetReadDeadline(time.Now().Add(pongWait))
     c.conn.SetPongHandler(func(string) error {
-        fmt.Println(c.user.Username+": pong")
+        log.Println(c.user.Username+": pong")
         c.conn.SetReadDeadline(time.Now().Add(pongWait))
         return nil
     })
@@ -46,10 +47,12 @@ func (c *Client) readWS() {
     for {
         _, msg, err := c.conn.ReadMessage()
         if err != nil {
-            fmt.Println("Read error: ", err)
+            log.Println("Read error: ", err)
             return
         }
-        fmt.Println(c.user.Username+": "+string(msg))
+
+        msg = []byte(c.user.Username+": "+string(msg))
+        log.Println(string(msg))
         c.hub.broadcast <- msg  // send to all
     }
 }
@@ -68,10 +71,11 @@ func (c *Client) writeWS() {
         select {
         // Heartbeat
         case <- ticker.C:
-            fmt.Println(c.user.Username+": ping")
+            log.Println(c.user.Username+": ping")
+
             err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
             if err != nil {
-                fmt.Println("Write error: ", err)
+                log.Println("Ping error: ", err)
                 return
             }
         }
@@ -82,13 +86,12 @@ func (c *Client) writeWS() {
 func handlerWS(w http.ResponseWriter, r *http.Request, hub *Hub) {
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
-        fmt.Println("Open connection error: ", err)
+        log.Println("Open connection error: ", err)
         return
     }
-    fmt.Println("Successfully connected")
+    log.Println("Successfully connected")
 
     user := context.Get(r, "User").(*User)
-    fmt.Println(user.FullName)
 
     client := &Client{
         hub: hub,
