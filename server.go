@@ -3,7 +3,6 @@
 package main
 
 import (
-    "time"
     "net/http"
     "html/template"
 )
@@ -17,18 +16,13 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
         login := r.Form["login"][0]
         password := r.Form["password"][0]
 
-        user, ok := users[login]
-        if ok && user.Password == password {
-            cookie := http.Cookie{
-                Name: "SessionID",
-                Value: login + ":abc123",
-                Expires: time.Now().Add(365 * 24 * time.Hour),
-            }
-            http.SetCookie(w, &cookie)
+        user, err := authenticate(login, password)
+        if err != nil {
+            context["err"] = err.Error()
+        } else {
+            makeSession(w, user)
             http.Redirect(w, r, "/", 302)
             return
-        } else {
-            context["err"] = "Login or password incorrect"
         }
     }
 
@@ -38,7 +32,7 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
 
 
 func handlerLogout(w http.ResponseWriter, r *http.Request) {
-    removeSessionCookie(w)
+    removeSession(w, r)
     http.Redirect(w, r, "/login", 302)
     return
 }

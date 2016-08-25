@@ -3,9 +3,21 @@
 package main
 
 import (
+    "fmt"
     "log"
     "net/http"
     "os"
+    "database/sql"
+    _ "github.com/lib/pq"
+)
+
+
+// Global connection to DB
+var db *sql.DB
+const (
+    dbUser = "pguser"
+    dbPass = "123"
+    dbName = "db_gochat"
 )
 
 
@@ -13,9 +25,11 @@ func main() {
     var err error
 
     // Log file
+    // var f *os.File
     // f, err = os.OpenFile("log.txt", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0644)
     // if err != nil {
     //     log.Println("Cannot open log file for wrinting: ", err)
+    //     panic(err.Error())
     // }
     // defer f.Close()
     // log.SetOutput(f)
@@ -27,6 +41,21 @@ func main() {
     // fs := http.Dir("static")
     // fileHandler := http.FileServer(fs)
     // http.Handle("/static/", http.StripPrefix("/static/", fileHandler))
+
+    // DB
+    dbConnect := fmt.Sprintf("user=%s password=%s dbname=%s", dbUser, dbPass, dbName)
+    db, err = sql.Open("postgres", dbConnect)
+    if err != nil {
+        log.Println("DB open error: ", err)
+        panic(err.Error())
+    }
+    err = db.Ping()
+    if err != nil {
+        log.Println("DB ping error: ", err)
+        panic(err.Error())
+    }
+    log.Println("DB connected successfully")
+    defer db.Close()
 
     // Messages exchanging
     hub := &Hub{
