@@ -42,7 +42,7 @@ func main() {
     // fileHandler := http.FileServer(fs)
     // http.Handle("/static/", http.StripPrefix("/static/", fileHandler))
 
-    // DB
+    // DB connect (using global variable)
     dbConnect := fmt.Sprintf("user=%s password=%s dbname=%s", dbUser, dbPass, dbName)
     db, err = sql.Open("postgres", dbConnect)
     if err != nil {
@@ -60,7 +60,7 @@ func main() {
     // Messages exchanging
     hub := &Hub{
         clients: make(map[*Client]bool),
-        broadcast: make(chan []byte),
+        broadcast: make(chan *Message),
         register:  make(chan *Client),
         unregister: make(chan *Client),
     }

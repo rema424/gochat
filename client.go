@@ -24,9 +24,16 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-    hub *Hub
+    hub  *Hub
     conn *websocket.Conn
     user *User
+}
+
+type Message struct {
+    sender    *User
+    recipient *User
+    text      []byte
+    send_date string
 }
 
 
@@ -39,20 +46,24 @@ func (c *Client) readWS() {
     c.conn.SetReadLimit(maxMessageSize)
     c.conn.SetReadDeadline(time.Now().Add(pongWait))
     c.conn.SetPongHandler(func(string) error {
-        log.Println(c.user.Username+": pong")
+        log.Println(c.user.username+": pong")
         c.conn.SetReadDeadline(time.Now().Add(pongWait))
         return nil
     })
 
     for {
-        _, msg, err := c.conn.ReadMessage()
+        _, text, err := c.conn.ReadMessage()
         if err != nil {
             log.Println("Read error: ", err)
             return
         }
 
-        msg = []byte(c.user.Username+": "+string(msg))
-        log.Println(string(msg))
+        msg := &Message{
+            sender: c.user,
+            recipient: nil,
+            text: text,
+        }
+        log.Println(string(text))
         c.hub.broadcast <- msg  // send to all
     }
 }
@@ -71,7 +82,7 @@ func (c *Client) writeWS() {
         select {
         // Heartbeat
         case <- ticker.C:
-            log.Println(c.user.Username+": ping")
+            log.Println(c.user.username+": ping")
 
             err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
             if err != nil {

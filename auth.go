@@ -15,11 +15,11 @@ import (
 
 
 type User struct {
-    Id       int
-    FullName string
-    Username string
-    Email    string
-    Password string
+    id       int
+    fullname string
+    username string
+    email    string
+    password string
 }
 
 
@@ -47,14 +47,14 @@ func makeSession(w http.ResponseWriter, user *User) error {
     if err != nil {
         return err
     }
-    _, err = stmt.Exec(&key, &user.Id, &exp)
+    _, err = stmt.Exec(&key, &user.id, &exp)
     if err != nil {
         return err
     }
 
     cookie := http.Cookie{
         Name: "SessionID",
-        Value: user.Username + ":" + key,
+        Value: user.username + ":" + key,
         Expires: exp,
     }
     http.SetCookie(w, &cookie)
@@ -110,17 +110,17 @@ func authenticate(username string, password string) (*User, error) {
 
     var user User
     err = stmt.QueryRow(username).Scan(
-        &user.Id,
-        &user.FullName,
-        &user.Username,
-        &user.Email,
-        &user.Password,
+        &user.id,
+        &user.fullname,
+        &user.username,
+        &user.email,
+        &user.password,
     )
     if err != nil {
         return nil, err
     }
 
-    if user.Password == password {
+    if user.password == password {
         return &user, nil
     } else {
         return nil, errors.New("Login or password incorrect")
@@ -153,11 +153,11 @@ func checkSession(r *http.Request) (*User, error) {
 
     var user User
     err = stmt.QueryRow(username, sessionId).Scan(
-        &user.Id,
-        &user.FullName,
-        &user.Username,
-        &user.Email,
-        &user.Password,
+        &user.id,
+        &user.fullname,
+        &user.username,
+        &user.email,
+        &user.password,
     )
     if err != nil {
         return nil, err
