@@ -63,6 +63,7 @@ func makeSession(w http.ResponseWriter, user *User) error {
 }
 
 
+// Remove session and clear cookie
 func removeSession(w http.ResponseWriter, r *http.Request) error {
     cookie, err := r.Cookie("SessionID")
     if err != nil {
@@ -94,37 +95,6 @@ func removeSession(w http.ResponseWriter, r *http.Request) error {
     http.SetCookie(w, cookie)
 
     return nil
-}
-
-
-// Check user's credentials
-func authenticate(username string, password string) (*User, error) {
-    stmt, err := db.Prepare(`
-        SELECT id, full_name, username, email, password
-        FROM auth_user
-        WHERE username = $1
-    `)
-    if err != nil {
-        return nil, err
-    }
-
-    var user User
-    err = stmt.QueryRow(username).Scan(
-        &user.id,
-        &user.fullname,
-        &user.username,
-        &user.email,
-        &user.password,
-    )
-    if err != nil {
-        return nil, err
-    }
-
-    if user.password == password {
-        return &user, nil
-    } else {
-        return nil, errors.New("Login or password incorrect")
-    }
 }
 
 
@@ -164,6 +134,37 @@ func checkSession(r *http.Request) (*User, error) {
     }
 
     return &user, nil
+}
+
+
+// Check user's credentials
+func authenticate(username string, password string) (*User, error) {
+    stmt, err := db.Prepare(`
+        SELECT id, full_name, username, email, password
+        FROM auth_user
+        WHERE username = $1
+    `)
+    if err != nil {
+        return nil, err
+    }
+
+    var user User
+    err = stmt.QueryRow(username).Scan(
+        &user.id,
+        &user.fullname,
+        &user.username,
+        &user.email,
+        &user.password,
+    )
+    if err != nil {
+        return nil, err
+    }
+
+    if user.password == password {
+        return &user, nil
+    } else {
+        return nil, errors.New("Login or password incorrect")
+    }
 }
 
 

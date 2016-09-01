@@ -3,6 +3,7 @@
 package main
 
 import (
+    "fmt"
     "net/http"
     "html/template"
 )
@@ -39,12 +40,17 @@ func handlerLogout(w http.ResponseWriter, r *http.Request) {
 
 
 func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
+    // Since this is the default handler for all URLs, we
+    // must check if it is correct URL
     if r.URL.Path != "/" {
         http.Error(w, "Not found", 404)
         return
     }
 
     context := make(map[string]string)
-    tpl, _ := template.ParseFiles("templates/index.html")
-    tpl.Execute(w, context)
+    tpl, err := template.ParseFiles("templates/index.html", "templates/base.html")
+    if err != nil {
+        fmt.Println("Hello,  world")
+    }
+    tpl.ExecuteTemplate(w, "base", context)
 }

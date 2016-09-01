@@ -1,4 +1,4 @@
-// Hub transfers messages between client using channels
+// Hub transfers messages between clients using channels
 // and stores list of all clients.
 
 package main

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{{define "base"}}<!DOCTYPE html>
 <head>
     <title>Chat</title>
     <link rel="stylesheet" type="text/css" href="/static/css/bootstrap.min.css">
@@ -7,16 +7,11 @@
 </head>
 <body>
 
-<h1>Login</h1>
+{{template "content" .}}
 
-<form method="POST">
-    <input id="login" type="text" name="login" placeholder="login">
-    <input id="password" type="password" name="password" placeholder="password">
-    <button id="btn-send" type="submit">login</button>
-</form>
-<p class="error">{{.err}}</p>
-
+<script type="text/javascript" src="/static/js/jquery.min.js"></script>
 <script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+<script type="text/javascript" src="/static/js/script.js"></script>
 
 </body>
-</html>
+</html>{{end}}
