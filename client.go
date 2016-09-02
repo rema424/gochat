@@ -33,6 +33,7 @@ type Client struct {
 
 type Message struct {
     id        int
+    role      string
     sender    *User
     recipient *User
     text      string
@@ -40,8 +41,8 @@ type Message struct {
 }
 
 
-// Make JSON for sending to websocket
-func (m *Message) toJson() ([]byte, error) {
+// Make map for JSON encoding
+func (m *Message) toMap() map[string]string {
     var r string
     if m.recipient != nil {
         r = m.recipient.username
@@ -49,13 +50,21 @@ func (m *Message) toJson() ([]byte, error) {
         r = ""
     }
 
-    res, err := json.Marshal(map[string]string{
+    res := map[string]string{
+        "role": m.role,
         "sender": m.sender.username,
         "recipient": r,
         "date": fmt.Sprintf("%02d:%02d", m.send_date.Hour(), m.send_date.Minute()),
         "text": m.text,
-    })
+    }
 
+    return res
+}
+
+
+// Make JSON for sending to websocket
+func (m *Message) toJson() ([]byte, error) {
+    res, err := json.Marshal(m.toMap())
     return res, err
 }
 
@@ -75,16 +84,24 @@ func (c *Client) readWS() {
     })
 
     for {
-        _, text, err := c.conn.ReadMessage()
+        _, data, err := c.conn.ReadMessage()
         if err != nil {
             log.Println("Read error: ", err)
             return
         }
 
+        var msgJson map[string]string
+        err = json.Unmarshal(data, &msgJson)
+        if err != nil {
+            log.Println("JSON decode error: ", err)
+            return
+        }
+
         msg := &Message{
+            role: "message",
             sender: c.user,
             recipient: nil,
-            text: string(text),
+            text: msgJson["text"],
             send_date: time.Now(),
         }
         log.Println(c.user.username+": "+msg.text)

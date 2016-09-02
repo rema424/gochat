@@ -5,6 +5,7 @@ package main
 
 import (
     "log"
+    "encoding/json"
 
     "github.com/gorilla/websocket"
 )
@@ -13,18 +14,19 @@ import (
 type Hub struct {
     clients    map[*Client]bool
     broadcast  chan *Message
+    info       chan *Message
     register   chan *Client
     unregister chan *Client
 }
 
-
-func getLastMessages(user *User) ([]Message, error) {
-    var messages []Message
+func getLastMessages(user *User) ([]map[string]string, error) {
+    var messages []map[string]string
 
     stmt, err := db.Prepare(`
         SELECT *
         FROM (
-            SELECT u.id, u.username, m.id, m.text, m.send_date, m.recipient_id IS NULL
+            SELECT u.id, u.username, m.id, 'message',
+                m.text, m.send_date, m.recipient_id IS NULL
             FROM message AS m
             LEFT JOIN auth_user AS u ON u.id = m.sender_id
             WHERE m.recipient_id = $1 OR m.recipient_id IS NULL
@@ -34,7 +36,7 @@ func getLastMessages(user *User) ([]Message, error) {
         ORDER BY send_date ASC
     `)
     if err != nil {
-        return []Message{}, err
+        return []map[string]string{}, err
     }
 
     rows, err := stmt.Query(user.id)
@@ -44,16 +46,18 @@ func getLastMessages(user *User) ([]Message, error) {
     var sender User
     var isBroadcast bool
     for rows.Next() {
-        err = rows.Scan(&sender.id, &sender.username,
-            &msg.id, &msg.text, &msg.send_date, &isBroadcast)
+        err = rows.Scan(
+            &sender.id, &sender.username, &msg.id, &msg.role,
+            &msg.text, &msg.send_date, &isBroadcast)
         if err != nil {
-            return []Message{}, err
+            return []map[string]string{}, err
         }
         msg.sender = &sender
         if !isBroadcast {
             msg.recipient = user
         }
-        messages = append(messages, msg)
+
+        messages = append(messages, msg.toMap())
     }
 
     return messages, nil
@@ -74,15 +78,17 @@ func (h *Hub) run() {
                 log.Println(err)
                 continue
             }
+
             for _, msg := range messages {
-                msgJson, err := msg.toJson()
+                msgJson, err := json.Marshal(msg)
                 if err != nil {
                     log.Println("JSON encoding error: ", err)
+                    continue
                 }
 
                 err = client.conn.WriteMessage(
                     websocket.TextMessage,
-                    []byte(msgJson),
+                    msgJson,
                 )
                 if err != nil {
                     log.Println("Write error: ", err)
@@ -90,6 +96,13 @@ func (h *Hub) run() {
                     delete(h.clients, client)
                 }
             }
+
+            // Tell everybody about new user
+            msg := &Message{
+                role: "new_user",
+                text: client.user.username + " joined the room",
+            }
+            h.broadcast <- msg
 
         // Remove client from chat
         case client := <-h.unregister:
@@ -100,24 +113,32 @@ func (h *Hub) run() {
         // Send message to all and save it to DB as broadcast
         // message (no recipient and recieve date)
         case msg := <-h.broadcast:
-            stmt, err := db.Prepare(`
-                INSERT INTO message
-                (sender_id, text, send_date)
-                VALUES
-                ($1, $2, $3)
-            `)
-            if err != nil {
-                log.Println("Saving message error:", err)
-            }
-            _, err = stmt.Exec(&msg.sender.id, &msg.text, &msg.send_date)
-            if err != nil {
-                log.Println("Saving message error:", err)
+            // Store only users' messages in DB
+            if msg.role == "message" {
+                stmt, err := db.Prepare(`
+                    INSERT INTO message
+                    (sender_id, recipient_id, text, send_date)
+                    VALUES
+                    ($1, $2, $3, $4)
+                `)
+                if err != nil {
+                    log.Println("Saving message error:", err)
+                    continue
+                }
+                _, err = stmt.Exec(
+                    &msg.sender.id, nil,
+                    &msg.text, &msg.send_date)
+                if err != nil {
+                    log.Println("Saving message error:", err)
+                    continue
+                }
             }
 
             for client := range h.clients {
-                msgJson, err := msg.toJson()
+                msgJson, err := json.Marshal(msg.toMap())
                 if err != nil {
                     log.Println("JSON encoding error: ", err)
+                    continue
                 }
 
                 err = client.conn.WriteMessage(

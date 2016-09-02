@@ -33,20 +33,25 @@ socket.onclose = function (event) {
 socket.onmessage = function (event) {
     var msg = JSON.parse(event.data);
     var msgString;
-    if (msg.recipient) {
-        msgString =
-            formatMessage(msg.date + ', ', 'date') +
-            formatMessage(msg.sender, 'sender') +
-            formatMessage(' TO ', 'to') +
-            formatMessage(msg.recipient + ': ', 'recipient') +
-            formatMessage(msg.text, 'text')
-    } else {
-        msgString =
-            formatMessage(msg.date + ', ', 'date') +
-            formatMessage(msg.sender + ': ', 'sender') +
-            formatMessage(msg.text, 'text')
+
+    if (msg.role == 'message') {
+        if (msg.recipient) {
+            msgString =
+                formatMessage(msg.date + ', ', 'date') +
+                formatMessage(msg.sender, 'sender') +
+                formatMessage(' TO ', 'to') +
+                formatMessage(msg.recipient + ': ', 'recipient') +
+                formatMessage(msg.text, 'text');
+        } else {
+            msgString =
+                formatMessage(msg.date + ', ', 'date') +
+                formatMessage(msg.sender + ': ', 'sender') +
+                formatMessage(msg.text, 'text');
+        }
+        showMessage(msgString);
+    } else if (role == 'new_user') {
+        msgString = formatMessage(msg.text, 'info');
     }
-    showMessage(msgString);
 };
 
 socket.onerror = function (error) {
@@ -54,17 +59,27 @@ socket.onerror = function (error) {
 };
 
 // Send message
+// role in [message, status]
+function sendMessage(text, role) {
+    var msg = JSON.stringify({
+        text: text,
+        role: role
+    })
+    socket.send(msg);
+}
+
 $btn.on('click', function () {
     event.preventDefault();
     var message = $input.val();
-    socket.send(message);
+    sendMessage(message, 'message');
     $input.val('');
 });
+
 $input.on('keypress', function (event) {
     if (event.keyCode == 13) {
         event.preventDefault();
         var message = $input.val();
-        socket.send(message);
+        sendMessage(message, 'message');
         $input.val('');
     }
 });

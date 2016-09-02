@@ -30,8 +30,12 @@
     border-radius: 4px;
 }
 
+#input-recipient {
+    width: 150px;
+}
+
 #input-message {
-    width: 540px;
+    width: 386px;
 }
 
 .error {
