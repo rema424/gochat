@@ -1,21 +1,58 @@
-#board {
-    width: 500px;
-    height: 200px;
-    margin-bottom: 10px;
-    overflow-y: scroll;
-    border: 1px solid #666;
-    line-height: 0.4;
-    padding: 0px 10px;
+.page {
+    padding: 100px;
 }
 
-#message {
-    width: 470px;
+.page .tab-content {
+    padding: 20px;
+    border-right: 1px solid #ddd;
+    border-left: 1px solid #ddd;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Top navbar */
+.navbar-nav .logout {
+    padding: 13px;
+}
+
+.navbar-nav .logout:hover {
+    text-decoration: none;
+}
+
+#board {
+    width: 600px;
+    height: 300px;
+    margin-bottom: 10px;
+    overflow-y: scroll;
+    line-height: 0.9;
+    padding: 6px 12px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+#input-message {
+    width: 540px;
 }
 
 .error {
-    color: red;
+    color: #a94442;
 }
 
-.btn-logout {
-    margin-top: 10px;
+.msg-date,
+.msg-sender,
+.msg-to,
+.msg-recipient {
+    color: #999;
+}
+
+.msg-text {
+    color: #666;
+}
+
+.msg-error {
+    color: #a94442;
+}
+
+.msg-info {
+    color: #31708f;
 }

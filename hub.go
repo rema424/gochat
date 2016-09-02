@@ -5,6 +5,7 @@ package main
 
 import (
     "log"
+
     "github.com/gorilla/websocket"
 )
 
@@ -17,33 +18,40 @@ type Hub struct {
 }
 
 
-func getLastMessages(user *User) ([]string, error) {
-    var messages []string
+func getLastMessages(user *User) ([]Message, error) {
+    var messages []Message
 
     stmt, err := db.Prepare(`
-        SELECT msg
+        SELECT *
         FROM (
-            SELECT u.username || ': ' || m.text AS msg, send_date
+            SELECT u.id, u.username, m.id, m.text, m.send_date, m.recipient_id IS NULL
             FROM message AS m
             LEFT JOIN auth_user AS u ON u.id = m.sender_id
             WHERE m.recipient_id = $1 OR m.recipient_id IS NULL
-            ORDER BY send_date DESC
+            ORDER BY m.send_date DESC
             LIMIT 10
         ) AS tmp
         ORDER BY send_date ASC
     `)
     if err != nil {
-        return []string{}, err
+        return []Message{}, err
     }
 
     rows, err := stmt.Query(user.id)
     defer rows.Close()
 
-    var msg string
+    var msg Message
+    var sender User
+    var isBroadcast bool
     for rows.Next() {
-        err = rows.Scan(&msg)
+        err = rows.Scan(&sender.id, &sender.username,
+            &msg.id, &msg.text, &msg.send_date, &isBroadcast)
         if err != nil {
-            return []string{}, err
+            return []Message{}, err
+        }
+        msg.sender = &sender
+        if !isBroadcast {
+            msg.recipient = user
         }
         messages = append(messages, msg)
     }
@@ -67,9 +75,14 @@ func (h *Hub) run() {
                 continue
             }
             for _, msg := range messages {
-                err := client.conn.WriteMessage(
+                msgJson, err := msg.toJson()
+                if err != nil {
+                    log.Println("JSON encoding error: ", err)
+                }
+
+                err = client.conn.WriteMessage(
                     websocket.TextMessage,
-                    []byte(msg),
+                    []byte(msgJson),
                 )
                 if err != nil {
                     log.Println("Write error: ", err)
@@ -85,26 +98,31 @@ func (h *Hub) run() {
             delete(h.clients, client)
 
         // Send message to all and save it to DB as broadcast
-        // message (no recepient and recieve date)
+        // message (no recipient and recieve date)
         case msg := <-h.broadcast:
             stmt, err := db.Prepare(`
                 INSERT INTO message
                 (sender_id, text, send_date)
                 VALUES
-                ($1, $2, CURRENT_TIMESTAMP)
+                ($1, $2, $3)
             `)
             if err != nil {
                 log.Println("Saving message error:", err)
             }
-            _, err = stmt.Exec(&msg.sender.id, &msg.text)
+            _, err = stmt.Exec(&msg.sender.id, &msg.text, &msg.send_date)
             if err != nil {
                 log.Println("Saving message error:", err)
             }
 
             for client := range h.clients {
-                err := client.conn.WriteMessage(
+                msgJson, err := msg.toJson()
+                if err != nil {
+                    log.Println("JSON encoding error: ", err)
+                }
+
+                err = client.conn.WriteMessage(
                     websocket.TextMessage,
-                    []byte(client.user.username+": "+string(msg.text)),
+                    msgJson,
                 )
                 if err != nil {
                     log.Println("Write error: ", err)

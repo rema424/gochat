@@ -3,6 +3,8 @@
 package main
 
 import (
+    "encoding/json"
+    "fmt"
     "log"
     "net/http"
     "time"
@@ -30,10 +32,31 @@ type Client struct {
 }
 
 type Message struct {
+    id        int
     sender    *User
     recipient *User
-    text      []byte
-    send_date string
+    text      string
+    send_date time.Time
+}
+
+
+// Make JSON for sending to websocket
+func (m *Message) toJson() ([]byte, error) {
+    var r string
+    if m.recipient != nil {
+        r = m.recipient.username
+    } else {
+        r = ""
+    }
+
+    res, err := json.Marshal(map[string]string{
+        "sender": m.sender.username,
+        "recipient": r,
+        "date": fmt.Sprintf("%02d:%02d", m.send_date.Hour(), m.send_date.Minute()),
+        "text": m.text,
+    })
+
+    return res, err
 }
 
 
@@ -61,9 +84,10 @@ func (c *Client) readWS() {
         msg := &Message{
             sender: c.user,
             recipient: nil,
-            text: text,
+            text: string(text),
+            send_date: time.Now(),
         }
-        log.Println(string(text))
+        log.Println(c.user.username+": "+msg.text)
         c.hub.broadcast <- msg  // send to all
     }
 }

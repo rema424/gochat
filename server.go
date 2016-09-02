@@ -3,14 +3,17 @@
 package main
 
 import (
-    "fmt"
+    "log"
     "net/http"
     "html/template"
+
+    "github.com/gorilla/context"
 )
 
 
 func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
-    context := make(map[string]string)
+    log.Println("hi")
+    ctx := make(map[string]string)
 
     if r.Method == "POST" {
         r.ParseForm()
@@ -19,7 +22,7 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
 
         user, err := authenticate(login, password)
         if err != nil {
-            context["err"] = err.Error()
+            ctx["err"] = err.Error()
         } else {
             makeSession(w, user)
             http.Redirect(w, r, "/", 302)
@@ -27,8 +30,8 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
         }
     }
 
-    tpl, _ := template.ParseFiles("templates/login.html")
-    tpl.Execute(w, context)
+    tpl, _ := template.ParseFiles("templates/login.html", "templates/base.html")
+    tpl.ExecuteTemplate(w, "base", ctx)
 }
 
 
@@ -47,10 +50,8 @@ func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    context := make(map[string]string)
-    tpl, err := template.ParseFiles("templates/index.html", "templates/base.html")
-    if err != nil {
-        fmt.Println("Hello,  world")
-    }
-    tpl.ExecuteTemplate(w, "base", context)
+    ctx := make(map[string]string)
+    tpl, _ := template.ParseFiles("templates/index.html", "templates/base.html")
+    ctx["username"] = context.Get(r, "User").(*User).username
+    tpl.ExecuteTemplate(w, "base", ctx)
 }
