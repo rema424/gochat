@@ -1,6 +1,8 @@
+var currentUser = {}
 var $input = $('#input-message');
 var $btn = $('#btn-send');
 var $board = $('#board');
+var $userlist = $('#input-recipient')
 
 // Display message
 function showMessage(msg) {
@@ -18,6 +20,36 @@ var socket = new WebSocket("ws://gochat.local/ws");
 // WebSocket events
 socket.onopen = function () {
     showMessage(formatMessage('Connected', 'info'));
+
+    // Get self info
+    $.getJSON({
+        url: '/ajax/users/self',
+        dataType: 'json',
+        success: function(response) {
+            currentUser = response;
+        },
+        error: function(response) {
+            console.log(response);
+        }
+    });
+
+    // Get userlist
+    $.getJSON({
+        url: '/ajax/users',
+        dataType: 'json',
+        success: function(response) {
+            response.forEach(function (username) {
+                $userlist.append(
+                    $('<option></option>')
+                        .attr('value', username)
+                        .text(username)
+                );
+            })
+        },
+        error: function(response) {
+            console.log(response);
+        }
+    });
 };
 
 socket.onclose = function (event) {
@@ -34,7 +66,18 @@ socket.onmessage = function (event) {
     var msg = JSON.parse(event.data);
     var msgString;
 
-    if (msg.role == 'message') {
+    if (currentUser &&
+        msg.sender != currentUser.username &&
+        msg.role == 'new_user'
+    ) {
+        $userlist.append(
+            $('<option></option>')
+                .attr('value', msg.sender)
+                .text(msg.sender)
+        );
+        msgString = formatMessage(msg.text, 'info');
+        showMessage(msgString);
+    } else if (msg.role == 'message') {
         if (msg.recipient) {
             msgString =
                 formatMessage(msg.date + ', ', 'date') +
@@ -49,8 +92,6 @@ socket.onmessage = function (event) {
                 formatMessage(msg.text, 'text');
         }
         showMessage(msgString);
-    } else if (role == 'new_user') {
-        msgString = formatMessage(msg.text, 'info');
     }
 };
 
@@ -61,14 +102,27 @@ socket.onerror = function (error) {
 // Send message
 // role in [message, status]
 function sendMessage(text, role) {
+    // Don't send empty messages
+    if (!text) {
+        return;
+    }
+
     var msg = JSON.stringify({
         text: text,
         role: role
-    })
+    });
     socket.send(msg);
+
+    // Immidiatly add to the board
+    var now = new Date();
+    var msgString =
+        formatMessage(now.getHours() + ':' + now.getMinutes() + ', ', 'date') +
+        formatMessage(currentUser.username + ': ', 'sender') +
+        formatMessage(text, 'text');
+    showMessage(msgString);
 }
 
-$btn.on('click', function () {
+$btn.on('click', function (event) {
     event.preventDefault();
     var message = $input.val();
     sendMessage(message, 'message');

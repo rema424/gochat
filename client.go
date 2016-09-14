@@ -43,29 +43,27 @@ type Message struct {
 
 // Make map for JSON encoding
 func (m *Message) toMap() map[string]string {
-    var r string
+    var r, s string
     if m.recipient != nil {
         r = m.recipient.username
     } else {
         r = ""
     }
+    if m.sender != nil {
+        s = m.sender.username
+    } else {
+        s = ""
+    }
 
     res := map[string]string{
         "role": m.role,
-        "sender": m.sender.username,
+        "sender": s,
         "recipient": r,
         "date": fmt.Sprintf("%02d:%02d", m.send_date.Hour(), m.send_date.Minute()),
         "text": m.text,
     }
 
     return res
-}
-
-
-// Make JSON for sending to websocket
-func (m *Message) toJson() ([]byte, error) {
-    res, err := json.Marshal(m.toMap())
-    return res, err
 }
 
 
@@ -104,7 +102,6 @@ func (c *Client) readWS() {
             text: msgJson["text"],
             send_date: time.Now(),
         }
-        log.Println(c.user.username+": "+msg.text)
         c.hub.broadcast <- msg  // send to all
     }
 }

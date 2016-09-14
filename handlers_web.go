@@ -1,9 +1,8 @@
-// URL handlers.
+// URL handlers for pages.
 
 package main
 
 import (
-    "log"
     "net/http"
     "html/template"
 
@@ -12,7 +11,6 @@ import (
 
 
 func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
-    log.Println("hi")
     ctx := make(map[string]string)
 
     if r.Method == "POST" {

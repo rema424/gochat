@@ -6,6 +6,7 @@ package main
 import (
     "log"
     "encoding/json"
+    "time"
 
     "github.com/gorilla/websocket"
 )
@@ -18,6 +19,7 @@ type Hub struct {
     register   chan *Client
     unregister chan *Client
 }
+
 
 func getLastMessages(user *User) ([]map[string]string, error) {
     var messages []map[string]string
@@ -64,6 +66,29 @@ func getLastMessages(user *User) ([]map[string]string, error) {
 }
 
 
+func (h *Hub) sendAll(msg *Message) {
+    for client := range h.clients {
+        if client.user != msg.sender {
+            msgJson, err := json.Marshal(msg.toMap())
+            if err != nil {
+                log.Println("JSON encoding error: ", err)
+                continue
+            }
+
+            err = client.conn.WriteMessage(
+                websocket.TextMessage,
+                msgJson,
+            )
+            if err != nil {
+                log.Println("Write error: ", err)
+                client.conn.Close()
+                delete(h.clients, client)
+            }
+        }
+    }
+}
+
+
 func (h *Hub) run() {
     for {
         select {
@@ -71,6 +96,15 @@ func (h *Hub) run() {
         case client := <-h.register:
             log.Println("Registered: "+client.user.username)
             h.clients[client] = true
+
+            // Tell everyone (except new user) about new user
+            msg := &Message{
+                role: "new_user",
+                sender: client.user,
+                text: client.user.username + " joined the room",
+                send_date: time.Now(),
+            }
+            h.sendAll(msg)
 
             // Send last 10 messages
             messages, err := getLastMessages(client.user)
@@ -97,13 +131,6 @@ func (h *Hub) run() {
                 }
             }
 
-            // Tell everybody about new user
-            msg := &Message{
-                role: "new_user",
-                text: client.user.username + " joined the room",
-            }
-            h.broadcast <- msg
-
         // Remove client from chat
         case client := <-h.unregister:
             log.Println("Unregistered: "+client.user.username)
@@ -115,6 +142,13 @@ func (h *Hub) run() {
         case msg := <-h.broadcast:
             // Store only users' messages in DB
             if msg.role == "message" {
+                // Prohibit empty messages from users
+                if msg.text == "" {
+                    continue
+                }
+
+                log.Println(msg.sender.username+": "+msg.text)
+
                 stmt, err := db.Prepare(`
                     INSERT INTO message
                     (sender_id, recipient_id, text, send_date)
@@ -134,23 +168,7 @@ func (h *Hub) run() {
                 }
             }
 
-            for client := range h.clients {
-                msgJson, err := json.Marshal(msg.toMap())
-                if err != nil {
-                    log.Println("JSON encoding error: ", err)
-                    continue
-                }
-
-                err = client.conn.WriteMessage(
-                    websocket.TextMessage,
-                    msgJson,
-                )
-                if err != nil {
-                    log.Println("Write error: ", err)
-                    client.conn.Close()
-                    delete(h.clients, client)
-                }
-            }
+            h.sendAll(msg)
         }
     }
 }

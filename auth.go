@@ -23,6 +23,18 @@ type User struct {
 }
 
 
+func (u *User) toMap() map[string]string {
+    res := map[string]string{
+        "id": string(u.id),
+        "fullname": u.fullname,
+        "username": u.username,
+        "email": u.email,
+    }
+
+    return res
+}
+
+
 func makeSessionKey() string {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     key := make([]byte, 64)

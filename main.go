@@ -72,6 +72,12 @@ func main() {
     http.HandleFunc("/ws", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
         handlerWS(w, r, hub)
     }))
+    http.HandleFunc("/ajax/users/self", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+        handlerAjaxUserSelf(w, r, hub)
+    }))
+    http.HandleFunc("/ajax/users", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+        handlerAjaxUsersList(w, r, hub)
+    }))
     http.HandleFunc("/", authMiddleware(handlerIndexPage))
 
     // Run server
