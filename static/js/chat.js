@@ -72,8 +72,8 @@ socket.onmessage = function (event) {
     ) {
         $userlist.append(
             $('<option></option>')
-                .attr('value', msg.sender)
-                .text(msg.sender)
+                .attr('value', msg.sender.id)
+                .text(msg.sender.username)
         );
         msgString = formatMessage(msg.text, 'info');
         showMessage(msgString);
