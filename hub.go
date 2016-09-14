@@ -21,8 +21,8 @@ type Hub struct {
 }
 
 
-func getLastMessages(user *User) ([]map[string]string, error) {
-    var messages []map[string]string
+func getLastMessages(user *User) ([]Message, error) {
+    var messages []Message
 
     stmt, err := db.Prepare(`
         SELECT *
@@ -38,10 +38,10 @@ func getLastMessages(user *User) ([]map[string]string, error) {
         ORDER BY send_date ASC
     `)
     if err != nil {
-        return []map[string]string{}, err
+        return []Message{}, err
     }
 
-    rows, err := stmt.Query(user.id)
+    rows, err := stmt.Query(user.Id)
     defer rows.Close()
 
     var msg Message
@@ -49,17 +49,17 @@ func getLastMessages(user *User) ([]map[string]string, error) {
     var isBroadcast bool
     for rows.Next() {
         err = rows.Scan(
-            &sender.id, &sender.username, &msg.id, &msg.role,
-            &msg.text, &msg.send_date, &isBroadcast)
+            &sender.Id, &sender.Username, &msg.Id, &msg.Role,
+            &msg.Text, &msg.SendDate, &isBroadcast)
         if err != nil {
-            return []map[string]string{}, err
+            return []Message{}, err
         }
-        msg.sender = &sender
+        msg.Sender = &sender
         if !isBroadcast {
-            msg.recipient = user
+            msg.Recipient = user
         }
 
-        messages = append(messages, msg.toMap())
+        messages = append(messages, msg)
     }
 
     return messages, nil
@@ -68,8 +68,8 @@ func getLastMessages(user *User) ([]map[string]string, error) {
 
 func (h *Hub) sendAll(msg *Message) {
     for client := range h.clients {
-        if client.user != msg.sender {
-            msgJson, err := json.Marshal(msg.toMap())
+        if client.user != msg.Sender {
+            msgJson, err := json.Marshal(msg)
             if err != nil {
                 log.Println("JSON encoding error: ", err)
                 continue
@@ -94,15 +94,15 @@ func (h *Hub) run() {
         select {
         // Add client to chat
         case client := <-h.register:
-            log.Println("Registered: "+client.user.username)
+            log.Println("Registered: "+client.user.Username)
             h.clients[client] = true
 
             // Tell everyone (except new user) about new user
             msg := &Message{
-                role: "new_user",
-                sender: client.user,
-                text: client.user.username + " joined the room",
-                send_date: time.Now(),
+                Role: "new_user",
+                Sender: client.user,
+                Text: client.user.Username + " joined the room",
+                SendDate: time.Now(),
             }
             h.sendAll(msg)
 
@@ -133,7 +133,7 @@ func (h *Hub) run() {
 
         // Remove client from chat
         case client := <-h.unregister:
-            log.Println("Unregistered: "+client.user.username)
+            log.Println("Unregistered: "+client.user.Username)
             client.conn.Close()
             delete(h.clients, client)
 
@@ -141,13 +141,13 @@ func (h *Hub) run() {
         // message (no recipient and recieve date)
         case msg := <-h.broadcast:
             // Store only users' messages in DB
-            if msg.role == "message" {
+            if msg.Role == "message" {
                 // Prohibit empty messages from users
-                if msg.text == "" {
+                if msg.Text == "" {
                     continue
                 }
 
-                log.Println(msg.sender.username+": "+msg.text)
+                log.Println(msg.Sender.Username+": "+msg.Text)
 
                 stmt, err := db.Prepare(`
                     INSERT INTO message
@@ -160,8 +160,8 @@ func (h *Hub) run() {
                     continue
                 }
                 _, err = stmt.Exec(
-                    &msg.sender.id, nil,
-                    &msg.text, &msg.send_date)
+                    &msg.Sender.Id, nil,
+                    &msg.Text, &msg.SendDate)
                 if err != nil {
                     log.Println("Saving message error:", err)
                     continue

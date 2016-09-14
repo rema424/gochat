@@ -4,7 +4,6 @@ package main
 
 import (
     "encoding/json"
-    "fmt"
     "log"
     "net/http"
     "time"
@@ -32,38 +31,12 @@ type Client struct {
 }
 
 type Message struct {
-    id        int
-    role      string
-    sender    *User
-    recipient *User
-    text      string
-    send_date time.Time
-}
-
-
-// Make map for JSON encoding
-func (m *Message) toMap() map[string]string {
-    var r, s string
-    if m.recipient != nil {
-        r = m.recipient.username
-    } else {
-        r = ""
-    }
-    if m.sender != nil {
-        s = m.sender.username
-    } else {
-        s = ""
-    }
-
-    res := map[string]string{
-        "role": m.role,
-        "sender": s,
-        "recipient": r,
-        "date": fmt.Sprintf("%02d:%02d", m.send_date.Hour(), m.send_date.Minute()),
-        "text": m.text,
-    }
-
-    return res
+    Id        int       `json:"id"`
+    Role      string    `json:"role"`
+    Sender    *User     `json:"sender"`
+    Recipient *User     `json:"recipient"`
+    Text      string    `json:"text"`
+    SendDate time.Time  `json:"send_date"`
 }
 
 
@@ -76,7 +49,7 @@ func (c *Client) readWS() {
     c.conn.SetReadLimit(maxMessageSize)
     c.conn.SetReadDeadline(time.Now().Add(pongWait))
     c.conn.SetPongHandler(func(string) error {
-        log.Println(c.user.username+": pong")
+        log.Println(c.user.Username+": pong")
         c.conn.SetReadDeadline(time.Now().Add(pongWait))
         return nil
     })
@@ -96,11 +69,11 @@ func (c *Client) readWS() {
         }
 
         msg := &Message{
-            role: "message",
-            sender: c.user,
-            recipient: nil,
-            text: msgJson["text"],
-            send_date: time.Now(),
+            Role: "message",
+            Sender: c.user,
+            Recipient: nil,
+            Text: msgJson["text"],
+            SendDate: time.Now(),
         }
         c.hub.broadcast <- msg  // send to all
     }
@@ -120,7 +93,7 @@ func (c *Client) writeWS() {
         select {
         // Heartbeat
         case <- ticker.C:
-            log.Println(c.user.username+": ping")
+            log.Println(c.user.Username+": ping")
 
             err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
             if err != nil {

@@ -38,11 +38,11 @@ socket.onopen = function () {
         url: '/ajax/users',
         dataType: 'json',
         success: function(response) {
-            response.forEach(function (username) {
+            response.forEach(function (user) {
                 $userlist.append(
                     $('<option></option>')
-                        .attr('value', username)
-                        .text(username)
+                        .attr('value', user.id)
+                        .text(user.username)
                 );
             })
         },
@@ -101,7 +101,7 @@ socket.onerror = function (error) {
 
 // Send message
 // role in [message, status]
-function sendMessage(text, role) {
+function sendMessage(text, role, recipientId) {
     // Don't send empty messages
     if (!text) {
         return;
@@ -111,6 +111,9 @@ function sendMessage(text, role) {
         text: text,
         role: role
     });
+    if (recipientId) {
+        msg.recipient = recipientId;
+    }
     socket.send(msg);
 
     // Immidiatly add to the board
@@ -125,7 +128,8 @@ function sendMessage(text, role) {
 $btn.on('click', function (event) {
     event.preventDefault();
     var message = $input.val();
-    sendMessage(message, 'message');
+    var recipientId = $userlist.val();
+    sendMessage(message, 'message', recipientId);
     $input.val('');
 });
 
@@ -133,7 +137,8 @@ $input.on('keypress', function (event) {
     if (event.keyCode == 13) {
         event.preventDefault();
         var message = $input.val();
-        sendMessage(message, 'message');
+        var recipientId = $userlist.val();
+        sendMessage(message, 'message', recipientId);
         $input.val('');
     }
 });
