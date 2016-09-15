@@ -1,0 +1,47 @@
+// Bind URLs to handle functions.
+
+package main
+
+
+import (
+    "net/http"
+)
+
+
+func makeRouter(h *Hub) {
+    // AJAX
+    http.HandleFunc(
+        "/ajax/users/self",
+        authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+            handlerAjaxUserSelf(w, r, h)
+        }),
+    )
+    http.HandleFunc(
+        "/ajax/users",
+        authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+            handlerAjaxUsersList(w, r, h)
+        }),
+    )
+
+    // WS
+    http.HandleFunc(
+        "/ws",
+        authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+            handlerWS(w, r, h)
+        }),
+    )
+
+    // Pages
+    http.HandleFunc(
+        "/login",
+        handlerLoginPage,
+    )
+    http.HandleFunc(
+        "/logout",
+        authMiddleware(handlerLogout),
+    )
+    http.HandleFunc(
+        "/",
+        authMiddleware(handlerIndexPage),
+    )
+}

@@ -1,84 +1,81 @@
-// Chat app entry point.
+// Entry point.
 
 package main
 
 import (
-    "fmt"
     "log"
     "net/http"
     "os"
     "database/sql"
+
     _ "github.com/lib/pq"
 )
 
 
 // Global connection to DB
 var db *sql.DB
-const (
-    dbUser = "pguser"
-    dbPass = "123"
-    dbName = "db_gochat"
-)
+
+
+// Log either to file or to stdout
+func setLogOutput(mode string) (*os.File, error) {
+    var err error
+    var f *os.File
+
+    if mode == "file" {
+        f, err = os.OpenFile("log.txt", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0644)
+        if err != nil {
+            return nil, err
+        }
+        log.SetOutput(f)
+    } else if mode == "stdout" {
+        log.SetOutput(os.Stdout)
+    }
+
+    return f, nil
+}
+
+
+// Static files served either by Nginx or by Go FileServer
+func setStaticMode(mode string) {
+    if mode == "self" {
+        fs := http.Dir("static")
+        fileHandler := http.FileServer(fs)
+        http.Handle("/static/", http.StripPrefix("/static/", fileHandler))
+    } else if mode == "separate" {
+        // do nothing (static files are served by Nginx)
+    }
+}
 
 
 func main() {
     var err error
 
-    // Log file
-    // var f *os.File
-    // f, err = os.OpenFile("log.txt", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0644)
-    // if err != nil {
-    //     log.Println("Cannot open log file for wrinting: ", err)
-    //     panic(err.Error())
-    // }
-    // defer f.Close()
-    // log.SetOutput(f)
-
-    // Log to stdout
-    log.SetOutput(os.Stdout)
+    // Logs
+    f, err := setLogOutput("stdout")
+    if err != nil {
+        panic(err.Error())
+    } else if f != nil {
+        defer f.Close()
+    }
 
     // Static files
-    // fs := http.Dir("static")
-    // fileHandler := http.FileServer(fs)
-    // http.Handle("/static/", http.StripPrefix("/static/", fileHandler))
+    setStaticMode("separate")
 
     // DB connect (using global variable)
-    dbConnect := fmt.Sprintf("user=%s password=%s dbname=%s", dbUser, dbPass, dbName)
-    db, err = sql.Open("postgres", dbConnect)
+    db, err = dbConnect()
     if err != nil {
-        log.Println("DB open error: ", err)
         panic(err.Error())
+    } else {
+        log.Println("DB connected successfully")
+        defer db.Close()
     }
-    err = db.Ping()
-    if err != nil {
-        log.Println("DB ping error: ", err)
-        panic(err.Error())
-    }
-    log.Println("DB connected successfully")
-    defer db.Close()
 
-    // Messages exchanging
-    hub := &Hub{
-        clients: make(map[*Client]bool),
-        broadcast: make(chan *Message),
-        register:  make(chan *Client),
-        unregister: make(chan *Client),
-    }
+    // Messages exchanging (websockets)
+    hub := makeHub()
     go hub.run()
 
-    // Routing
-    http.HandleFunc("/login", handlerLoginPage)
-    http.HandleFunc("/logout", authMiddleware(handlerLogout))
-    http.HandleFunc("/ws", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
-        handlerWS(w, r, hub)
-    }))
-    http.HandleFunc("/ajax/users/self", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
-        handlerAjaxUserSelf(w, r, hub)
-    }))
-    http.HandleFunc("/ajax/users", authMiddleware(func(w http.ResponseWriter, r *http.Request) {
-        handlerAjaxUsersList(w, r, hub)
-    }))
-    http.HandleFunc("/", authMiddleware(handlerIndexPage))
+    // Bind routes to URLs
+    makeRouter(hub)
 
     // Run server
     port := "8080"

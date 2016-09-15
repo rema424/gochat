@@ -14,15 +14,6 @@ import (
 )
 
 
-type User struct {
-    Id       int    `json:"id"`
-    Fullname string `json:"fullname"`
-    Username string `json:"username"`
-    Email    string `json:"email"`
-    Password string `json:"-"`
-}
-
-
 func makeSessionKey() string {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     key := make([]byte, 64)

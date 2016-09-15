@@ -21,48 +21,15 @@ type Hub struct {
 }
 
 
-func getLastMessages(user *User) ([]Message, error) {
-    var messages []Message
-
-    stmt, err := db.Prepare(`
-        SELECT *
-        FROM (
-            SELECT u.id, u.username, m.id, 'message',
-                m.text, m.send_date, m.recipient_id IS NULL
-            FROM message AS m
-            LEFT JOIN auth_user AS u ON u.id = m.sender_id
-            WHERE m.recipient_id = $1 OR m.recipient_id IS NULL
-            ORDER BY m.send_date DESC
-            LIMIT 10
-        ) AS tmp
-        ORDER BY send_date ASC
-    `)
-    if err != nil {
-        return []Message{}, err
+func makeHub() *Hub {
+    h := &Hub{
+        clients: make(map[*Client]bool),
+        broadcast: make(chan *Message),
+        register:  make(chan *Client),
+        unregister: make(chan *Client),
     }
 
-    rows, err := stmt.Query(user.Id)
-    defer rows.Close()
-
-    var msg Message
-    var sender User
-    var isBroadcast bool
-    for rows.Next() {
-        err = rows.Scan(
-            &sender.Id, &sender.Username, &msg.Id, &msg.Role,
-            &msg.Text, &msg.SendDate, &isBroadcast)
-        if err != nil {
-            return []Message{}, err
-        }
-        msg.Sender = &sender
-        if !isBroadcast {
-            msg.Recipient = user
-        }
-
-        messages = append(messages, msg)
-    }
-
-    return messages, nil
+    return h
 }
 
 
@@ -102,12 +69,12 @@ func (h *Hub) run() {
                 Role: "new_user",
                 Sender: client.user,
                 Text: client.user.Username + " joined the room",
-                SendDate: time.Now(),
+                SendDate: time.Now().Unix(),
             }
             h.sendAll(msg)
 
             // Send last 10 messages
-            messages, err := getLastMessages(client.user)
+            messages, err := getLastMessages(client.user, 10)
             if err != nil {
                 log.Println(err)
                 continue
@@ -142,28 +109,9 @@ func (h *Hub) run() {
         case msg := <-h.broadcast:
             // Store only users' messages in DB
             if msg.Role == "message" {
-                // Prohibit empty messages from users
-                if msg.Text == "" {
-                    continue
-                }
-
-                log.Println(msg.Sender.Username+": "+msg.Text)
-
-                stmt, err := db.Prepare(`
-                    INSERT INTO message
-                    (sender_id, recipient_id, text, send_date)
-                    VALUES
-                    ($1, $2, $3, $4)
-                `)
+                err := msg.save()
                 if err != nil {
-                    log.Println("Saving message error:", err)
-                    continue
-                }
-                _, err = stmt.Exec(
-                    &msg.Sender.Id, nil,
-                    &msg.Text, &msg.SendDate)
-                if err != nil {
-                    log.Println("Saving message error:", err)
+                    log.Println("Saving message error: ", err)
                     continue
                 }
             }

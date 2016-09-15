@@ -78,17 +78,19 @@ socket.onmessage = function (event) {
         msgString = formatMessage(msg.text, 'info');
         showMessage(msgString);
     } else if (msg.role == 'message') {
+        var date = new Date(msg.send_date * 1000);
+        date = date.getHours() + ':' + date.getMinutes();
         if (msg.recipient) {
             msgString =
-                formatMessage(msg.date + ', ', 'date') +
-                formatMessage(msg.sender, 'sender') +
+                formatMessage(date + ', ', 'date') +
+                formatMessage(msg.sender.username, 'sender') +
                 formatMessage(' TO ', 'to') +
                 formatMessage(msg.recipient + ': ', 'recipient') +
                 formatMessage(msg.text, 'text');
         } else {
             msgString =
-                formatMessage(msg.date + ', ', 'date') +
-                formatMessage(msg.sender + ': ', 'sender') +
+                formatMessage(date + ', ', 'date') +
+                formatMessage(msg.sender.username + ': ', 'sender') +
                 formatMessage(msg.text, 'text');
         }
         showMessage(msgString);

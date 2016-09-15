@@ -30,15 +30,6 @@ type Client struct {
     user *User
 }
 
-type Message struct {
-    Id        int       `json:"id"`
-    Role      string    `json:"role"`
-    Sender    *User     `json:"sender"`
-    Recipient *User     `json:"recipient"`
-    Text      string    `json:"text"`
-    SendDate time.Time  `json:"send_date"`
-}
-
 
 func (c *Client) readWS() {
     defer func() {
@@ -73,7 +64,7 @@ func (c *Client) readWS() {
             Sender: c.user,
             Recipient: nil,
             Text: msgJson["text"],
-            SendDate: time.Now(),
+            SendDate: time.Now().Unix(),
         }
         c.hub.broadcast <- msg  // send to all
     }
