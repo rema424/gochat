@@ -1,6 +1,6 @@
 // Structure and methods for Message objects.
 
-package main
+package chat
 
 import (
     "encoding/json"

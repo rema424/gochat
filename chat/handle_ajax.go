@@ -1,6 +1,6 @@
 // URL handlers for AJAX requests.
 
-package main
+package chat
 
 import (
     "encoding/json"

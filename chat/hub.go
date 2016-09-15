@@ -1,7 +1,7 @@
 // Hub transfers messages between clients using channels
 // and stores list of all clients.
 
-package main
+package chat
 
 import (
     "log"

@@ -1,6 +1,6 @@
 // URL handlers for pages.
 
-package main
+package chat
 
 import (
     "net/http"

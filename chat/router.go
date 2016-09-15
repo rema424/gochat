@@ -1,6 +1,6 @@
 // Bind URLs to handle functions.
 
-package main
+package chat
 
 
 import (

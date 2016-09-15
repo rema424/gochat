@@ -1,6 +1,6 @@
 // DB-related functions.
 
-package main
+package chat
 
 import (
     "fmt"

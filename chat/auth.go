@@ -1,6 +1,6 @@
 // Authentication tools.
 
-package main
+package chat
 
 import (
     "errors"

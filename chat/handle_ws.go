@@ -1,6 +1,6 @@
 // Serving client websocket connecions.
 
-package main
+package chat
 
 import (
     "encoding/json"

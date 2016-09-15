@@ -1,6 +1,6 @@
 // Structure and methods for User objects.
 
-package main
+package chat
 
 
 type User struct {
