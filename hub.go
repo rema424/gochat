@@ -14,7 +14,7 @@ import (
 
 type Hub struct {
     clients    map[*Client]bool
-    broadcast  chan *Message
+    message    chan *Message
     info       chan *Message
     register   chan *Client
     unregister chan *Client
@@ -24,7 +24,7 @@ type Hub struct {
 func makeHub() *Hub {
     h := &Hub{
         clients: make(map[*Client]bool),
-        broadcast: make(chan *Message),
+        message: make(chan *Message),
         register:  make(chan *Client),
         unregister: make(chan *Client),
     }
@@ -33,9 +33,15 @@ func makeHub() *Hub {
 }
 
 
-func (h *Hub) sendAll(msg *Message) {
+func (h *Hub) send(msg *Message) {
     for client := range h.clients {
-        if client.user != msg.Sender {
+        // Send only to recipient or if it is broadcast
+        isBroadcast := msg.Recipient == nil
+        isRecipient := !isBroadcast && (client.user.Id == msg.Recipient.Id)
+        // Don't send self messages
+        toSelf := client.user == msg.Sender
+
+        if !toSelf && (isBroadcast || isRecipient) {
             msgJson, err := json.Marshal(msg)
             if err != nil {
                 log.Println("JSON encoding error: ", err)
@@ -71,7 +77,7 @@ func (h *Hub) run() {
                 Text: client.user.Username + " joined the room",
                 SendDate: time.Now(),
             }
-            h.sendAll(msg)
+            h.send(msg)
 
             // Send last 10 messages
             messages, err := getLastMessages(client.user, 10)
@@ -106,7 +112,7 @@ func (h *Hub) run() {
 
         // Send message to all and save it to DB as broadcast
         // message (no recipient and recieve date)
-        case msg := <-h.broadcast:
+        case msg := <-h.message:
             // Store only users' messages in DB
             if msg.Role == "message" {
                 err := msg.save()
@@ -116,7 +122,13 @@ func (h *Hub) run() {
                 }
             }
 
-            h.sendAll(msg)
+            if msg.Recipient != nil {
+                log.Println(msg.Sender.Username+" TO "+msg.Recipient.Username+": "+msg.Text)
+            } else {
+                log.Println(msg.Sender.Username+": "+msg.Text)
+            }
+
+            h.send(msg)
         }
     }
 }

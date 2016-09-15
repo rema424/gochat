@@ -61,7 +61,7 @@ func (c *Client) readWS() {
         }
 
         msg.Sender = c.user
-        c.hub.broadcast <- &msg  // send to all
+        c.hub.message <- &msg  // send to all
     }
 }
 

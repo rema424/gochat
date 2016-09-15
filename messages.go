@@ -5,7 +5,6 @@ package main
 import (
     "encoding/json"
     "errors"
-    "log"
     "time"
 )
 
@@ -32,12 +31,17 @@ func (m *Message) MarshalJSON() ([]byte, error) {
     })
 }
 
-// Custom unmarshaller: add current timestamp as date
+// Custom unmarshaller: add current timestamp as date,
+// find recipient by id in database
 func (m *Message) UnmarshalJSON(data []byte) error {
     type Alias Message
 
+    // Temporary structure for marshalling JSON
     tmp := &struct {
-        SendDate int64 `json:"send_date"`
+        SendDate  int64      `json:"send_date"`
+        Recipient *struct {
+            Id    int        `json:"id"`
+        }                    `json:"recipient"`
         *Alias
     }{
         Alias: (*Alias)(m),
@@ -47,7 +51,31 @@ func (m *Message) UnmarshalJSON(data []byte) error {
     if err != nil {
         return err
     }
+
+    // Get full recipient info from database
+    var recipient User
+    stmt, err := db.Prepare(`
+        SELECT id, username, full_name, email
+        FROM auth_user
+        WHERE id = $1
+    `)
+    if err != nil {
+        return err
+    }
+
+    err = stmt.QueryRow(tmp.Recipient.Id).Scan(
+        &recipient.Id,
+        &recipient.Username,
+        &recipient.Fullname,
+        &recipient.Email,
+    )
+    if err != nil {
+        return err
+    }
+
     m.SendDate = time.Now()
+    m.Recipient = &recipient
+
     return nil
 }
 
@@ -59,8 +87,6 @@ func (m *Message) save() error {
         return errors.New("Text cannot be empty")
     }
 
-    log.Println(m.Sender.Username+": "+m.Text)
-
     stmt, err := db.Prepare(`
         INSERT INTO message
         (sender_id, recipient_id, text, send_date)
@@ -70,9 +96,15 @@ func (m *Message) save() error {
     if err != nil {
         return err
     }
-    _, err = stmt.Exec(
-        &m.Sender.Id, nil,
-        &m.Text, &m.SendDate)
+    if m.Recipient != nil {
+        _, err = stmt.Exec(
+            &m.Sender.Id, m.Recipient.Id,
+            &m.Text, &m.SendDate)
+    } else {
+        _, err = stmt.Exec(
+            &m.Sender.Id, nil,
+            &m.Text, &m.SendDate)
+    }
     if err != nil {
         return err
     }

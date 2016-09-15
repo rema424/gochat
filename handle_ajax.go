@@ -27,9 +27,13 @@ func handlerAjaxUserSelf(w http.ResponseWriter, r *http.Request, hub *Hub) {
 
 // Return all usernames
 func handlerAjaxUsersList(w http.ResponseWriter, r *http.Request, hub *Hub) {
+    user := context.Get(r, "User").(*User)
+
     users := []*User{}
     for c := range(hub.clients) {
-        users = append(users, c.user)
+        if c.user.Id != user.Id {
+            users = append(users, c.user)
+        }
     }
 
     resp, err := json.Marshal(users)

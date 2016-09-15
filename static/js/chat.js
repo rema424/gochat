@@ -85,7 +85,7 @@ socket.onmessage = function (event) {
                 formatMessage(date + ', ', 'date') +
                 formatMessage(msg.sender.username, 'sender') +
                 formatMessage(' TO ', 'to') +
-                formatMessage(msg.recipient + ': ', 'recipient') +
+                formatMessage(msg.recipient.username + ': ', 'recipient') +
                 formatMessage(msg.text, 'text');
         } else {
             msgString =
@@ -103,35 +103,48 @@ socket.onerror = function (error) {
 
 // Send message
 // role in [message, status]
-function sendMessage(text, role, recipientId) {
+function sendMessage(text, role, recipient) {
     // Don't send empty messages
     if (!text) {
         return;
     }
 
-    var msg = JSON.stringify({
+    var msg = {
         text: text,
         role: role
-    });
-    if (recipientId) {
-        msg.recipient = recipientId;
+    };
+    if (recipient) {
+        msg.recipient = {id: parseInt(recipient.id)};
     }
-    socket.send(msg);
+    socket.send(JSON.stringify(msg));
 
     // Immidiatly add to the board
     var now = new Date();
-    var msgString =
-        formatMessage(now.getHours() + ':' + now.getMinutes() + ', ', 'date') +
-        formatMessage(currentUser.username + ': ', 'sender') +
-        formatMessage(text, 'text');
+    var msgString;
+    if (recipient) {
+        msgString =
+            formatMessage(now.getHours() + ':' + now.getMinutes() + ', ', 'date') +
+            formatMessage(currentUser.username, 'sender') +
+            formatMessage(' TO ', 'to') +
+            formatMessage(recipient.username + ': ', 'recipient') +
+            formatMessage(text, 'text');
+    } else {
+        msgString =
+            formatMessage(now.getHours() + ':' + now.getMinutes() + ', ', 'date') +
+            formatMessage(currentUser.username + ': ', 'sender') +
+            formatMessage(text, 'text');
+    }
     showMessage(msgString);
 }
 
 $btn.on('click', function (event) {
     event.preventDefault();
     var message = $input.val();
-    var recipientId = $userlist.val();
-    sendMessage(message, 'message', recipientId);
+    var recipient = {
+        id: $userlist.val(),
+        username: $userlist.find('option:selected').text().trim()
+    };
+    sendMessage(message, 'message', recipient);
     $input.val('');
 });
 
@@ -139,8 +152,11 @@ $input.on('keypress', function (event) {
     if (event.keyCode == 13) {
         event.preventDefault();
         var message = $input.val();
-        var recipientId = $userlist.val();
-        sendMessage(message, 'message', recipientId);
+        var recipient = {
+            id: $userlist.val(),
+            username: $userlist.find('option:selected').text().trim()
+        };
+        sendMessage(message, 'message', recipient);
         $input.val('');
     }
 });
