@@ -10,12 +10,7 @@ import (
 )
 
 
-func dbConnect() (*sql.DB, error) {
-    const (
-        dbUser = "pguser"
-        dbPass = "123"
-        dbName = "db_gochat"
-    )
+func dbConnect(dbUser string, dbPass string, dbName string) (*sql.DB, error) {
     var err error
 
     dbConnection := fmt.Sprintf("user=%s password=%s dbname=%s", dbUser, dbPass, dbName)

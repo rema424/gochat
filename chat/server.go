@@ -11,6 +11,21 @@ import (
     _ "github.com/lib/pq"
 )
 
+// Settings
+const (
+    // Logs
+    logsMode = "file"        // or "stdout"
+    logDir = "logs"          // necessary only if logsMode = "file"
+    logFile = "debug.log"    // necessary only if logsMode = "file"
+
+    // Static files
+    staticMode = "separate"  // or "self"
+
+    // Database settings
+    dbUser = "pguser"
+    dbPass = "123"
+    dbName = "db_gochat"
+)
 
 // Global connection to DB
 var db *sql.DB
@@ -18,11 +33,16 @@ var db *sql.DB
 
 // Log either to file or to stdout
 func setLogOutput(mode string) (*os.File, error) {
-    var err error
     var f *os.File
 
     if mode == "file" {
-        f, err = os.OpenFile("log.txt", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0644)
+        // Make logs dirs if it's not already exists
+        _, err := os.Stat("logs")
+        if os.IsNotExist(err) {
+            os.Mkdir("logs", 0700)
+        }
+        // Write logs to file
+        f, err = os.OpenFile("logs/debug.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0600)
         if err != nil {
             return nil, err
         }
@@ -51,7 +71,7 @@ func RunServer() {
     var err error
 
     // Logs
-    f, err := setLogOutput("stdout")
+    f, err := setLogOutput(logsMode)
     if err != nil {
         panic(err.Error())
     } else if f != nil {
@@ -59,10 +79,10 @@ func RunServer() {
     }
 
     // Static files
-    setStaticMode("separate")
+    setStaticMode(logsMode)
 
     // DB connect (using global variable)
-    db, err = dbConnect()
+    db, err = dbConnect(dbUser, dbPass, dbName)
     if err != nil {
         panic(err.Error())
     } else {
