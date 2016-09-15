@@ -69,7 +69,7 @@ func (h *Hub) run() {
                 Role: "new_user",
                 Sender: client.user,
                 Text: client.user.Username + " joined the room",
-                SendDate: time.Now().Unix(),
+                SendDate: time.Now(),
             }
             h.sendAll(msg)
 
@@ -81,7 +81,7 @@ func (h *Hub) run() {
             }
 
             for _, msg := range messages {
-                msgJson, err := json.Marshal(msg)
+                msgJson, err := json.Marshal(&msg)
                 if err != nil {
                     log.Println("JSON encoding error: ", err)
                     continue

@@ -3,18 +3,52 @@
 package main
 
 import (
+    "encoding/json"
     "errors"
     "log"
+    "time"
 )
 
 
 type Message struct {
-    Id        int       `json:"id"`
-    Role      string    `json:"role"`
-    Sender    *User     `json:"sender"`
-    Recipient *User     `json:"recipient"`
-    Text      string    `json:"text"`
-    SendDate  int64     `json:"send_date"`  // timestamp
+    Id        int        `json:"id"`
+    Role      string     `json:"role"`
+    Sender    *User      `json:"sender"`
+    Recipient *User      `json:"recipient"`
+    Text      string     `json:"text"`
+    SendDate  time.Time  `json:"send_date"`
+}
+
+
+// Custom marshaler: convert date to int64 (timestamp)
+func (m *Message) MarshalJSON() ([]byte, error) {
+    type Alias Message
+    return json.Marshal(&struct {
+        SendDate int64 `json:"send_date"`
+        *Alias
+    }{
+        SendDate: m.SendDate.Unix(),
+        Alias:    (*Alias)(m),
+    })
+}
+
+// Custom unmarshaller: add current timestamp as date
+func (m *Message) UnmarshalJSON(data []byte) error {
+    type Alias Message
+
+    tmp := &struct {
+        SendDate int64 `json:"send_date"`
+        *Alias
+    }{
+        Alias: (*Alias)(m),
+    }
+
+    err := json.Unmarshal(data, &tmp);
+    if err != nil {
+        return err
+    }
+    m.SendDate = time.Now()
+    return nil
 }
 
 
@@ -31,7 +65,7 @@ func (m *Message) save() error {
         INSERT INTO message
         (sender_id, recipient_id, text, send_date)
         VALUES
-        ($1, $2, $3, to_timestamp($4))
+        ($1, $2, $3, $4)
     `)
     if err != nil {
         return err
@@ -54,7 +88,7 @@ func getLastMessages(user *User, limit int) ([]Message, error) {
         SELECT *
         FROM (
             SELECT u.id, u.username, u.full_name, u.email,
-                m.id, 'message', m.text, EXTRACT(epoch FROM m.send_date)::int AS send_date,
+                m.id, 'message', m.text, m.send_date,
                 m.recipient_id IS NULL
             FROM message AS m
             LEFT JOIN auth_user AS u ON u.id = m.sender_id

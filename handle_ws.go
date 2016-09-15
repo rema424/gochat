@@ -1,4 +1,4 @@
-// Serving client connecions.
+// Serving client websocket connecions.
 
 package main
 
@@ -52,21 +52,16 @@ func (c *Client) readWS() {
             return
         }
 
-        var msgJson map[string]string
-        err = json.Unmarshal(data, &msgJson)
+        // var msgJson map[string]string
+        var msg Message
+        err = json.Unmarshal(data, &msg)
         if err != nil {
             log.Println("JSON decode error: ", err)
             return
         }
 
-        msg := &Message{
-            Role: "message",
-            Sender: c.user,
-            Recipient: nil,
-            Text: msgJson["text"],
-            SendDate: time.Now().Unix(),
-        }
-        c.hub.broadcast <- msg  // send to all
+        msg.Sender = c.user
+        c.hub.broadcast <- &msg  // send to all
     }
 }
 
