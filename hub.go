@@ -35,11 +35,11 @@ func makeHub() *Hub {
 
 func (h *Hub) send(msg *Message) {
     for client := range h.clients {
+        // Don't send self messages
+        toSelf := client.user == msg.Sender
         // Send only to recipient or if it is broadcast
         isBroadcast := msg.Recipient == nil
         isRecipient := !isBroadcast && (client.user.Id == msg.Recipient.Id)
-        // Don't send self messages
-        toSelf := client.user == msg.Sender
 
         if !toSelf && (isBroadcast || isRecipient) {
             msgJson, err := json.Marshal(msg)
@@ -106,9 +106,22 @@ func (h *Hub) run() {
 
         // Remove client from chat
         case client := <-h.unregister:
-            log.Println("Unregistered: "+client.user.Username)
-            client.conn.Close()
-            delete(h.clients, client)
+            _, alive := h.clients[client]
+            if alive {
+                log.Println("Unregistered: "+client.user.Username)
+
+                // Tell everyone about user has gone
+                msg := &Message{
+                    Role: "gone_user",
+                    Sender: client.user,
+                    Text: client.user.Username + " has gone",
+                    SendDate: time.Now(),
+                }
+                h.send(msg)
+
+                client.conn.Close()
+                delete(h.clients, client)
+            }
 
         // Send message to all and save it to DB as broadcast
         // message (no recipient and recieve date)

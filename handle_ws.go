@@ -48,7 +48,9 @@ func (c *Client) readWS() {
     for {
         _, data, err := c.conn.ReadMessage()
         if err != nil {
-            log.Println("Read error: ", err)
+            if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
+                log.Println("Read error: ", err)
+            }
             return
         }
 
@@ -79,13 +81,11 @@ func (c *Client) writeWS() {
         select {
         // Heartbeat
         case <- ticker.C:
-            log.Println(c.user.Username+": ping")
-
             err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
             if err != nil {
-                log.Println("Ping error: ", err)
                 return
             }
+            log.Println(c.user.Username+": ping")
         }
     }
 }

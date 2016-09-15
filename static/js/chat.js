@@ -66,15 +66,18 @@ socket.onmessage = function (event) {
     var msg = JSON.parse(event.data);
     var msgString;
 
-    if (currentUser &&
-        msg.sender != currentUser.username &&
-        msg.role == 'new_user'
-    ) {
+    if (currentUser && msg.role == 'new_user') {
         $userlist.append(
             $('<option></option>')
                 .attr('value', msg.sender.id)
                 .text(msg.sender.username)
         );
+        msgString = formatMessage(msg.text, 'info');
+        showMessage(msgString);
+    } else if (msg.role == 'gone_user') {
+        $userlist
+            .find('option[value="' + msg.sender.id + '"]')
+            .remove();
         msgString = formatMessage(msg.text, 'info');
         showMessage(msgString);
     } else if (msg.role == 'message') {
