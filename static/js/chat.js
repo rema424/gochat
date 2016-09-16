@@ -2,7 +2,7 @@ var currentUser = {}
 var $input = $('#input-message');
 var $btn = $('#btn-send');
 var $board = $('#board');
-var $userlist = $('#input-recipient')
+var $userlist = $('#input-users')
 
 // Display message
 function showMessage(msg) {
@@ -11,7 +11,60 @@ function showMessage(msg) {
 }
 
 function formatMessage(text, cls) {
-    return '<span class="msg-' + cls + '">' + text + '</span>';
+    var clsList = cls.split(',');
+
+    var i;
+    for (i = 0; i < clsList.length; i++) {
+        clsList[i] = 'msg-'+clsList[i].trim();
+    }
+    clsList = clsList.join(' ')
+
+    return '<span class="' + clsList + '">' + text + '</span>';
+}
+
+// Parse, format and display
+function processMessage(msg) {
+    if (currentUser && msg.role == 'new_user') {
+        $userlist.append(
+            $('<option></option>')
+                .attr('value', msg.sender.id)
+                .text(msg.sender.username)
+        );
+        msgString = formatMessage(msg.text, 'info');
+        showMessage(msgString);
+    } else if (msg.role == 'gone_user') {
+        $userlist
+            .find('option[value="' + msg.sender.id + '"]')
+            .remove();
+        msgString = formatMessage(msg.text, 'info');
+        showMessage(msgString);
+    } else if (msg.role == 'message') {
+        // Timestamp
+        var date = new Date(msg.send_date * 1000);
+        date = date.getHours() + ':' + date.getMinutes();
+
+        // Highlight self username
+        var isSender = msg.sender.username == currentUser.username ? ', self' : '';
+
+        // Format and show message
+        if (msg.recipient) {
+            var isRecipient = msg.recipient.username == currentUser.username ? ', self' : '';
+            msgString =
+                formatMessage(date + ', ', 'date') +
+                formatMessage(msg.sender.username, 'sender' + isSender) +
+                formatMessage(' TO ', 'delim') +
+                formatMessage(msg.recipient.username, 'recipient' + isRecipient) +
+                formatMessage(': ', 'delim') +
+                formatMessage(msg.text, 'text');
+        } else {
+            msgString =
+                formatMessage(date + ', ', 'date') +
+                formatMessage(msg.sender.username, 'sender' + isSender) +
+                formatMessage(': ', 'delim') +
+                formatMessage(msg.text, 'text');
+        }
+        showMessage(msgString);
+    }
 }
 
 // WebSocket init
@@ -50,6 +103,20 @@ socket.onopen = function () {
             console.log(response);
         }
     });
+
+    // Get last messages
+    $.getJSON({
+        url: '/ajax/messages/last',
+        dataType: 'json',
+        success: function(response) {
+            response.forEach(function (msg) {
+                processMessage(msg);
+            })
+        },
+        error: function(response) {
+            console.log(response);
+        }
+    });
 };
 
 socket.onclose = function (event) {
@@ -64,40 +131,7 @@ socket.onclose = function (event) {
 
 socket.onmessage = function (event) {
     var msg = JSON.parse(event.data);
-    var msgString;
-
-    if (currentUser && msg.role == 'new_user') {
-        $userlist.append(
-            $('<option></option>')
-                .attr('value', msg.sender.id)
-                .text(msg.sender.username)
-        );
-        msgString = formatMessage(msg.text, 'info');
-        showMessage(msgString);
-    } else if (msg.role == 'gone_user') {
-        $userlist
-            .find('option[value="' + msg.sender.id + '"]')
-            .remove();
-        msgString = formatMessage(msg.text, 'info');
-        showMessage(msgString);
-    } else if (msg.role == 'message') {
-        var date = new Date(msg.send_date * 1000);
-        date = date.getHours() + ':' + date.getMinutes();
-        if (msg.recipient) {
-            msgString =
-                formatMessage(date + ', ', 'date') +
-                formatMessage(msg.sender.username, 'sender') +
-                formatMessage(' TO ', 'to') +
-                formatMessage(msg.recipient.username + ': ', 'recipient') +
-                formatMessage(msg.text, 'text');
-        } else {
-            msgString =
-                formatMessage(date + ', ', 'date') +
-                formatMessage(msg.sender.username + ': ', 'sender') +
-                formatMessage(msg.text, 'text');
-        }
-        showMessage(msgString);
-    }
+    processMessage(msg);
 };
 
 socket.onerror = function (error) {
@@ -127,39 +161,54 @@ function sendMessage(text, role, recipient) {
     if (recipient) {
         msgString =
             formatMessage(now.getHours() + ':' + now.getMinutes() + ', ', 'date') +
-            formatMessage(currentUser.username, 'sender') +
-            formatMessage(' TO ', 'to') +
-            formatMessage(recipient.username + ': ', 'recipient') +
+            formatMessage(currentUser.username, 'sender, self') +
+            formatMessage(' TO ', 'delim') +
+            formatMessage(recipient.username, 'recipient') +
+            formatMessage(': ', 'delim') +
             formatMessage(text, 'text');
     } else {
         msgString =
             formatMessage(now.getHours() + ':' + now.getMinutes() + ', ', 'date') +
-            formatMessage(currentUser.username + ': ', 'sender') +
+            formatMessage(currentUser.username, 'sender, self') +
+            formatMessage(': ', 'delim') +
             formatMessage(text, 'text');
     }
     showMessage(msgString);
 }
 
-$btn.on('click', function (event) {
-    event.preventDefault();
+// Get data from form and call sendMessage() for it
+function submitMessageForm() {
     var message = $input.val();
-    var recipient = {
-        id: $userlist.val(),
-        username: $userlist.find('option:selected').text().trim()
+    var recipient;
+    var id = $userlist.val();
+
+    if (id) {
+        recipient = {
+            id: $userlist.val(),
+            username: $userlist.find('option:selected').text().trim()
+        }
     };
+
     sendMessage(message, 'message', recipient);
     $input.val('');
+}
+
+$btn.on('click', function (event) {
+    event.preventDefault();
+    submitMessageForm();
 });
 
 $input.on('keypress', function (event) {
     if (event.keyCode == 13) {
         event.preventDefault();
-        var message = $input.val();
-        var recipient = {
-            id: $userlist.val(),
-            username: $userlist.find('option:selected').text().trim()
-        };
-        sendMessage(message, 'message', recipient);
-        $input.val('');
+        submitMessageForm();
     }
+});
+
+// Pick user as recipient for private message
+$board.on('click', '.msg-sender, .msg-recipient', function () {
+    var username = $(this).text();
+    $userlist
+        .find('option:contains("' + username + '")')
+        .prop('selected', true);
 });

@@ -25,15 +25,11 @@ func handlerAjaxUserSelf(w http.ResponseWriter, r *http.Request, hub *Hub) {
 }
 
 
-// Return all usernames
+// Return all users from chat
 func handlerAjaxUsersList(w http.ResponseWriter, r *http.Request, hub *Hub) {
-    user := context.Get(r, "User").(*User)
-
     users := []*User{}
     for c := range(hub.clients) {
-        if c.user.Id != user.Id {
-            users = append(users, c.user)
-        }
+        users = append(users, c.user)
     }
 
     resp, err := json.Marshal(users)
@@ -41,6 +37,24 @@ func handlerAjaxUsersList(w http.ResponseWriter, r *http.Request, hub *Hub) {
     if err != nil {
         log.Println("JSON encoding error", err)
     }
+    w.Header().Set("Content-Type", "application/json")
+    w.Write(resp)
+}
+
+
+// Last 10 messages for current user
+func handlerGetLastMessages(w http.ResponseWriter, r *http.Request) {
+    user := context.Get(r, "User").(*User)
+
+    messages, err := getLastMessages(user, 10)
+    // TODO: Error message for client
+    if err != nil {
+        log.Println(err)
+        return
+    }
+
+    resp, _ := json.Marshal(messages)
+
     w.Header().Set("Content-Type", "application/json")
     w.Write(resp)
 }

@@ -6,6 +6,7 @@ import (
     "encoding/json"
     "errors"
     "time"
+    "database/sql"
 )
 
 
@@ -52,29 +53,34 @@ func (m *Message) UnmarshalJSON(data []byte) error {
         return err
     }
 
-    // Get full recipient info from database
-    var recipient User
-    stmt, err := db.Prepare(`
-        SELECT id, username, full_name, email
-        FROM auth_user
-        WHERE id = $1
-    `)
-    if err != nil {
-        return err
-    }
-
-    err = stmt.QueryRow(tmp.Recipient.Id).Scan(
-        &recipient.Id,
-        &recipient.Username,
-        &recipient.Fullname,
-        &recipient.Email,
-    )
-    if err != nil {
-        return err
-    }
-
     m.SendDate = time.Now()
-    m.Recipient = &recipient
+
+    // Get full recipient info from database
+    if tmp.Recipient != nil {
+        var recipient User
+        stmt, err := db.Prepare(`
+            SELECT id, username, full_name, email
+            FROM auth_user
+            WHERE id = $1
+        `)
+        if err != nil {
+            return err
+        }
+
+        err = stmt.QueryRow(tmp.Recipient.Id).Scan(
+            &recipient.Id,
+            &recipient.Username,
+            &recipient.Fullname,
+            &recipient.Email,
+        )
+        if err == sql.ErrNoRows {
+            return nil
+        } else if err != nil {
+            return err
+        }
+
+        m.Recipient = &recipient
+    }
 
     return nil
 }
@@ -146,6 +152,7 @@ func getLastMessages(user *User, limit int) ([]Message, error) {
     var isBroadcast bool
 
     for rows.Next() {
+        msg = Message{}
         err = rows.Scan(
             &sender.Id, &sender.Username, &sender.Fullname, &sender.Email,
             &msg.Id, &msg.Role, &msg.Text, &msg.SendDate, &isBroadcast)

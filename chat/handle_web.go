@@ -49,7 +49,7 @@ func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
     }
 
     ctx := make(map[string]string)
-    tpl, _ := template.ParseFiles("templates/index.html", "templates/base.html")
+    tpl, _ := template.ParseFiles("templates/chat.html", "templates/base.html")
     ctx["username"] = context.Get(r, "User").(*User).Username
     tpl.ExecuteTemplate(w, "base", ctx)
 }

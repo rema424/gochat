@@ -18,6 +18,11 @@
     text-decoration: none;
 }
 
+.messages {
+    float: left;
+    margin-right: 10px;
+}
+
 #board {
     width: 600px;
     height: 300px;
@@ -30,23 +35,38 @@
     border-radius: 4px;
 }
 
-#input-recipient {
-    width: 150px;
+#input-users {
+    width: 200px;
+    height: 300px;
 }
 
 #input-message {
-    width: 386px;
+    width: 496px;
+}
+
+#btn-send {
+    width: 100px;
 }
 
 .error {
     color: #a94442;
 }
 
+.msg-self,
 .msg-date,
 .msg-sender,
-.msg-to,
+.msg-delim,
 .msg-recipient {
     color: #999;
+}
+
+.msg-self {
+    font-weight: bold;
+}
+
+.msg-sender,
+.msg-recipient {
+    cursor: pointer;
 }
 
 .msg-text {

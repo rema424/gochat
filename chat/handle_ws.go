@@ -54,7 +54,6 @@ func (c *Client) readWS() {
             return
         }
 
-        // var msgJson map[string]string
         var msg Message
         err = json.Unmarshal(data, &msg)
         if err != nil {

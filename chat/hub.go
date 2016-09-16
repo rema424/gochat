@@ -79,31 +79,6 @@ func (h *Hub) run() {
             }
             h.send(msg)
 
-            // Send last 10 messages
-            messages, err := getLastMessages(client.user, 10)
-            if err != nil {
-                log.Println(err)
-                continue
-            }
-
-            for _, msg := range messages {
-                msgJson, err := json.Marshal(&msg)
-                if err != nil {
-                    log.Println("JSON encoding error: ", err)
-                    continue
-                }
-
-                err = client.conn.WriteMessage(
-                    websocket.TextMessage,
-                    msgJson,
-                )
-                if err != nil {
-                    log.Println("Write error: ", err)
-                    client.conn.Close()
-                    delete(h.clients, client)
-                }
-            }
-
         // Remove client from chat
         case client := <-h.unregister:
             _, alive := h.clients[client]
