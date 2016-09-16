@@ -1,71 +1,14 @@
+// Logged in user
 var currentUser = {}
+// Interface elements
 var $input = $('#input-message');
 var $btn = $('#btn-send');
 var $board = $('#board');
 var $userlist = $('#input-users')
 
-// Display message
-function showMessage(msg) {
-    $board.html($board.html() + '<p>' + msg + '</p>');
-    $board.scrollTop($board.prop('scrollHeight'));
-}
-
-function formatMessage(text, cls) {
-    var clsList = cls.split(',');
-
-    var i;
-    for (i = 0; i < clsList.length; i++) {
-        clsList[i] = 'msg-'+clsList[i].trim();
-    }
-    clsList = clsList.join(' ')
-
-    return '<span class="' + clsList + '">' + text + '</span>';
-}
-
-// Parse, format and display
-function processMessage(msg) {
-    if (currentUser && msg.role == 'new_user') {
-        $userlist.append(
-            $('<option></option>')
-                .attr('value', msg.sender.id)
-                .text(msg.sender.username)
-        );
-        msgString = formatMessage(msg.text, 'info');
-        showMessage(msgString);
-    } else if (msg.role == 'gone_user') {
-        $userlist
-            .find('option[value="' + msg.sender.id + '"]')
-            .remove();
-        msgString = formatMessage(msg.text, 'info');
-        showMessage(msgString);
-    } else if (msg.role == 'message') {
-        // Timestamp
-        var date = new Date(msg.send_date * 1000);
-        date = date.getHours() + ':' + date.getMinutes();
-
-        // Highlight self username
-        var isSender = msg.sender.username == currentUser.username ? ', self' : '';
-
-        // Format and show message
-        if (msg.recipient) {
-            var isRecipient = msg.recipient.username == currentUser.username ? ', self' : '';
-            msgString =
-                formatMessage(date + ', ', 'date') +
-                formatMessage(msg.sender.username, 'sender' + isSender) +
-                formatMessage(' TO ', 'delim') +
-                formatMessage(msg.recipient.username, 'recipient' + isRecipient) +
-                formatMessage(': ', 'delim') +
-                formatMessage(msg.text, 'text');
-        } else {
-            msgString =
-                formatMessage(date + ', ', 'date') +
-                formatMessage(msg.sender.username, 'sender' + isSender) +
-                formatMessage(': ', 'delim') +
-                formatMessage(msg.text, 'text');
-        }
-        showMessage(msgString);
-    }
-}
+//
+// WebSockets
+//
 
 // WebSocket init
 var socket = new WebSocket("ws://gochat.local/ws");
@@ -138,6 +81,78 @@ socket.onerror = function (error) {
     showMessage(formatMessage('Error: ' + error.message, 'error'));
 };
 
+//
+// Processing messages
+//
+
+// Display message
+function showMessage(msg) {
+    $board.html($board.html() + '<p>' + msg + '</p>');
+    $board.scrollTop($board.prop('scrollHeight'));
+}
+
+// Add classes and tags to string
+function formatMessage(text, cls) {
+    var clsList = cls.split(',');
+
+    var i;
+    for (i = 0; i < clsList.length; i++) {
+        clsList[i] = 'msg-'+clsList[i].trim();
+    }
+    clsList = clsList.join(' ')
+
+    return '<span class="' + clsList + '">' + text + '</span>';
+}
+
+// Parse, format and display
+function processMessage(msg) {
+    if (currentUser && msg.role == 'new_user') {
+        $userlist.append(
+            $('<option></option>')
+                .attr('value', msg.sender.id)
+                .text(msg.sender.username)
+        );
+        msgString = formatMessage(msg.text, 'info');
+        showMessage(msgString);
+    } else if (msg.role == 'gone_user') {
+        $userlist
+            .find('option[value="' + msg.sender.id + '"]')
+            .remove();
+        msgString = formatMessage(msg.text, 'info');
+        showMessage(msgString);
+    } else if (msg.role == 'message') {
+        // Timestamp
+        var date = new Date(msg.send_date * 1000);
+        date = date.getHours() + ':' + date.getMinutes();
+
+        // Highlight self username
+        var isSender = msg.sender.username == currentUser.username ? ', self' : '';
+
+        // Format and show message
+        if (msg.recipient) {
+            var isRecipient = msg.recipient.username == currentUser.username ? ', self' : '';
+            msgString =
+                formatMessage(date + ', ', 'date') +
+                formatMessage(msg.sender.username, 'sender' + isSender) +
+                formatMessage(' TO ', 'delim') +
+                formatMessage(msg.recipient.username, 'recipient' + isRecipient) +
+                formatMessage(': ', 'delim') +
+                formatMessage(msg.text, 'text');
+        } else {
+            msgString =
+                formatMessage(date + ', ', 'date') +
+                formatMessage(msg.sender.username, 'sender' + isSender) +
+                formatMessage(': ', 'delim') +
+                formatMessage(msg.text, 'text');
+        }
+        showMessage(msgString);
+    }
+}
+
+//
+// Sending messages
+//
+
 // Send message
 // role in [message, status]
 function sendMessage(text, role, recipient) {
@@ -192,6 +207,10 @@ function submitMessageForm() {
     sendMessage(message, 'message', recipient);
     $input.val('');
 }
+
+//
+// Interface events
+//
 
 $btn.on('click', function (event) {
     event.preventDefault();

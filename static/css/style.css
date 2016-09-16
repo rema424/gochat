@@ -1,3 +1,4 @@
+/* Main block */
 .page {
     padding: 100px;
 }
@@ -9,6 +10,10 @@
     border-bottom: 1px solid #ddd;
 }
 
+.error {
+    color: #a94442;
+}
+
 /* Top navbar */
 .navbar-nav .logout {
     padding: 13px;
@@ -18,6 +23,7 @@
     text-decoration: none;
 }
 
+/* Block for #board and #input-message */
 .messages {
     float: left;
     margin-right: 10px;
@@ -35,11 +41,6 @@
     border-radius: 4px;
 }
 
-#input-users {
-    width: 200px;
-    height: 300px;
-}
-
 #input-message {
     width: 496px;
 }
@@ -48,10 +49,13 @@
     width: 100px;
 }
 
-.error {
-    color: #a94442;
+/* List of all users */
+#input-users {
+    width: 200px;
+    height: 300px;
 }
 
+/* Message board */
 .msg-self,
 .msg-date,
 .msg-sender,
