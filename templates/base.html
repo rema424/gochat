@@ -16,7 +16,7 @@
                 <a class="navbar-brand" href="/"><i class="glyphicon glyphicon-home"></i></a>
             </div>
 
-            {{if .username}}
+            {{if .User}}
                 <!-- Right -->
                 <ul class="nav navbar-nav navbar-right">
                     <li>
@@ -37,6 +37,17 @@
 
     <script type="text/javascript" src="/static/js/jquery.min.js"></script>
     <script type="text/javascript" src="/static/js/bootstrap.min.js"></script>
+    {{if .User}}
+        <script type="text/javascript">
+            // Logged in user
+            var currentUser = {
+                id: {{.User.Username}},
+                username: {{.User.Username}},
+                fullname: {{.User.Fullname}},
+                email: {{.User.Email}}
+            };
+        </script>
+    {{end}}
     {{template "scripts" .}}
 </body>
 </html>{{end}}

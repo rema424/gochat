@@ -1,5 +1,5 @@
-// Logged in user
-var currentUser = {};
+// NOTE: currentUser variable is in template
+
 // Interface elements
 var $input = $('#input-message');
 var $btn = $('#btn-send');
@@ -17,18 +17,6 @@ var socket = new WebSocket("ws://gochat.local/ws");
 // WebSocket events
 socket.onopen = function () {
     showMessage(formatMessage('Connected', 'info'));
-
-    // Get self info
-    $.getJSON({
-        url: '/ajax/users/self',
-        dataType: 'json',
-        success: function(response) {
-            currentUser = response;
-        },
-        error: function(response) {
-            console.log(response);
-        }
-    });
 
     // Get userlist
     $.getJSON({
@@ -167,29 +155,17 @@ function sendMessage(text, role, recipient) {
         role: role
     };
     if (recipient) {
-        msg.recipient = {id: parseInt(recipient.id)};
+        msg.recipient = {
+            id: parseInt(recipient.id),
+            username: recipient.username
+        };
     }
     socket.send(JSON.stringify(msg));
 
     // Immidiatly add to the board
-    var now = new Date();
-    var msgString;
-    if (recipient) {
-        msgString =
-            formatMessage(now.getHours() + ':' + now.getMinutes() + ', ', 'date') +
-            formatMessage(currentUser.username, 'sender, self') +
-            formatMessage(' TO ', 'delim') +
-            formatMessage(recipient.username, 'recipient') +
-            formatMessage(': ', 'delim') +
-            formatMessage(text, 'text');
-    } else {
-        msgString =
-            formatMessage(now.getHours() + ':' + now.getMinutes() + ', ', 'date') +
-            formatMessage(currentUser.username, 'sender, self') +
-            formatMessage(': ', 'delim') +
-            formatMessage(text, 'text');
-    }
-    showMessage(msgString);
+    msg.send_date = new Date();
+    msg.sender = currentUser;
+    processMessage(msg);
 }
 
 // Get data from form and call sendMessage() for it
@@ -233,12 +209,20 @@ $board.on('click', '.msg-sender, .msg-recipient', function () {
         .prop('selected', true);
 
     $recipient.text(username);
+    $input.focus();
 });
 
+$userlist.on('change', function () {
+    var username = $(this).find('option:selected').text();
+    $recipient.text(username);
+    $input.focus();
+});
 
+// Clear recipient
 $recipient.on('click', function () {
     $recipient.text('@');
     $userlist
         .find('option:selected')
         .prop('selected', false);
+    $input.focus();
 });

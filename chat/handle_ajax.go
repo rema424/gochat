@@ -11,20 +11,6 @@ import (
 )
 
 
-// Self user info
-func handlerAjaxUserSelf(w http.ResponseWriter, r *http.Request, hub *Hub) {
-    user := context.Get(r, "User").(*User)
-
-    resp, err := json.Marshal(user)
-    if err != nil {
-        log.Println("JSON encoding error", err)
-    }
-
-    w.Header().Set("Content-Type", "application/json")
-    w.Write(resp)
-}
-
-
 // Return all users from chat
 func handlerAjaxUsersList(w http.ResponseWriter, r *http.Request, hub *Hub) {
     users := []*User{}

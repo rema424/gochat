@@ -11,12 +11,6 @@ import (
 func makeRouter(h *Hub) {
     // AJAX
     http.HandleFunc(
-        "/ajax/users/self",
-        authMiddleware(func(w http.ResponseWriter, r *http.Request) {
-            handlerAjaxUserSelf(w, r, h)
-        }),
-    )
-    http.HandleFunc(
         "/ajax/users",
         authMiddleware(func(w http.ResponseWriter, r *http.Request) {
             handlerAjaxUsersList(w, r, h)
