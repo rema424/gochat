@@ -41,8 +41,12 @@
     border-radius: 4px;
 }
 
-#input-message {
+.form-message .input-group {
     width: 496px;
+}
+
+#recipient {
+    cursor: pointer;
 }
 
 #btn-send {

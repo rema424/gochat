@@ -5,17 +5,18 @@
 
     <div class="messages">
         <div id="board"></div>
-        <form class="form-inline" action="">
+        <form class="form-inline form-message" action="">
             <div class="form-group">
-                <input id="input-message" type="text" name="message" class="form-control">
+                <div class="input-group">
+                    <span id="recipient" class="input-group-addon">@</span>
+                    <input id="input-message" type="text" name="message" class="form-control">
+                </div>
             </div>
             <button id="btn-send" class="btn btn-primary">send</button>
         </form>
     </div>
     <div class="users">
-        <select id="input-users" name="users" class="form-control" size="10">
-            <option value=""></option>
-        </select>
+        <select id="input-users" name="users" class="form-control" size="10"></select>
     </div>
 
 </div>

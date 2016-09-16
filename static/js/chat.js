@@ -1,10 +1,11 @@
 // Logged in user
-var currentUser = {}
+var currentUser = {};
 // Interface elements
 var $input = $('#input-message');
 var $btn = $('#btn-send');
 var $board = $('#board');
-var $userlist = $('#input-users')
+var $userlist = $('#input-users');
+var $recipient = $('#recipient');
 
 //
 // WebSockets
@@ -230,4 +231,14 @@ $board.on('click', '.msg-sender, .msg-recipient', function () {
     $userlist
         .find('option:contains("' + username + '")')
         .prop('selected', true);
+
+    $recipient.text(username);
+});
+
+
+$recipient.on('click', function () {
+    $recipient.text('@');
+    $userlist
+        .find('option:selected')
+        .prop('selected', false);
 });
