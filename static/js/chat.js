@@ -93,6 +93,26 @@ function formatMessage(text, cls) {
     return '<span class="' + clsList + '">' + text + '</span>';
 }
 
+// Get pretty formatted date
+function formatDate(timestamp) {
+    var monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var date = new Date(timestamp * 1000);
+    var now = new Date();
+    var diffDays = (now.getDate() - date.getDate());
+
+    if (diffDays == 0) {
+        dateStr = ("0" + date.getHours()).slice(-2) + ':' +
+            ("0" + date.getMinutes()).slice(-2);
+    } else if (diffDays == 1) {
+        dateStr = 'Yesterday';
+    } else {
+        dateStr = monthName[date.getMonth()] + ', ' + date.getDate();
+    }
+
+    return dateStr;
+}
+
 // Parse, format and display
 function processMessage(msg) {
     if (currentUser && msg.role == 'new_user') {
@@ -111,8 +131,7 @@ function processMessage(msg) {
         showMessage(msgString);
     } else if (msg.role == 'message') {
         // Timestamp
-        var date = new Date(msg.send_date * 1000);
-        date = date.getHours() + ':' + date.getMinutes();
+        var date = formatDate(msg.send_date);
 
         // Highlight self username
         var isSender = msg.sender.username == currentUser.username ? ', self' : '';
@@ -163,7 +182,7 @@ function sendMessage(text, role, recipient) {
     socket.send(JSON.stringify(msg));
 
     // Immidiatly add to the board
-    msg.send_date = new Date();
+    msg.send_date = (new Date())/1000;
     msg.sender = currentUser;
     processMessage(msg);
 }

@@ -53,7 +53,8 @@ func (m *Message) UnmarshalJSON(data []byte) error {
         return err
     }
 
-    m.SendDate = time.Now()
+    // Use UTC for saving
+    m.SendDate = time.Now().UTC()
 
     // Get full recipient info from database
     if tmp.Recipient != nil {
