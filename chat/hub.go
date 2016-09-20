@@ -44,7 +44,7 @@ func makeHub() *Hub {
 func (h *Hub) send(msg *Message) {
     for client := range h.clients {
         // Gone messages are sent to everyone (including sender)
-        toAll := msg.Action == "gone_user" || msg.Action == "mute"
+        toAll := contains([]string{"gone_user", "mute", "ban"}, msg.Action)
         // Don't send self messages
         toSelf := msg.Sender != nil && client.user.Id == msg.Sender.Id
         // Send only to recipient or if it is broadcast

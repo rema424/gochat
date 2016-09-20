@@ -40,6 +40,24 @@ func handlerLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 
+func handlerChatPage(w http.ResponseWriter, r *http.Request) {
+    u := context.Get(r, "User").(*User)
+
+    if u.Ban {
+        http.Redirect(w, r, "/", 302)
+        return
+    }
+
+    ctx := struct {
+        User *User
+    } {
+        context.Get(r, "User").(*User),
+    }
+    tpl, _ := template.ParseFiles("templates/chat.html", "templates/base.html")
+    tpl.ExecuteTemplate(w, "base", ctx)
+}
+
+
 func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
     // Since this is the default handler for all URLs, we
     // must check if it is correct URL
@@ -53,6 +71,6 @@ func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
     } {
         context.Get(r, "User").(*User),
     }
-    tpl, _ := template.ParseFiles("templates/chat.html", "templates/base.html")
+    tpl, _ := template.ParseFiles("templates/index.html", "templates/base.html")
     tpl.ExecuteTemplate(w, "base", ctx)
 }

@@ -109,7 +109,29 @@ func (u *User) manage(h *Hub, admin *User, act string) error {
         }
         log.Println("Kicked: "+u.Username)
         return nil
+
+    case "ban":
+        u.Ban = true
+        u.BanDate = &now
+
+        err := u.save()
+        if err != nil {
+            return err
+        }
+
+        for c := range h.clients {
+            if c.user.Id == u.Id {
+                un := &Unreg{
+                    client: c,
+                    msg: u.Username + " has been banned",
+                }
+                h.unregister <- un
+            }
+        }
+
+        return nil
     }
+
 
     return errors.New("Wrong action: "+act)
 }

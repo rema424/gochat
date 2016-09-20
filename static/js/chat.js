@@ -189,6 +189,9 @@ function processMessage(msg) {
             break;
 
         case 'ban':
+            removeUser(msg.recipient);
+            msgString = formatMessage(msg.text, 'info');
+            showMessage(msgString);
             break;
 
         case 'message':

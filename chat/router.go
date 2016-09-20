@@ -39,6 +39,10 @@ func makeRouter(h *Hub) {
         authMiddleware(handlerLogout),
     )
     http.HandleFunc(
+        "/chat",
+        authMiddleware(handlerChatPage),
+    )
+    http.HandleFunc(
         "/",
         authMiddleware(handlerIndexPage),
     )
