@@ -44,14 +44,14 @@ func makeHub() *Hub {
 func (h *Hub) send(msg *Message) {
     for client := range h.clients {
         // Gone messages are sent to everyone (including sender)
-        isGoneMsg := msg.Action == "gone_user"
+        toAll := msg.Action == "gone_user" || msg.Action == "mute"
         // Don't send self messages
         toSelf := msg.Sender != nil && client.user.Id == msg.Sender.Id
         // Send only to recipient or if it is broadcast
         isBroadcast := msg.Recipient == nil
         isRecipient := !isBroadcast && (client.user.Id == msg.Recipient.Id)
 
-        doSend := isGoneMsg || (!toSelf && (isBroadcast || isRecipient))
+        doSend := toAll || (!toSelf && (isBroadcast || isRecipient))
 
         if doSend {
             msgJson, err := json.Marshal(msg)
@@ -88,7 +88,7 @@ func (h *Hub) run() {
                 Action: "new_user",
                 Sender: client.user,
                 Text: client.user.Username + " joined the room",
-                SendDate: time.Now(),
+                SendDate: time.Now().UTC(),
             }
             h.send(msg)
 
@@ -105,7 +105,7 @@ func (h *Hub) run() {
                     Action: "gone_user",
                     Sender: client.user,
                     Text: msg,
-                    SendDate: time.Now(),
+                    SendDate: time.Now().UTC(),
                 }
                 h.send(msg)
 
@@ -116,6 +116,11 @@ func (h *Hub) run() {
         // Send message to all and save it to DB as broadcast
         // message (no recipient and recieve date)
         case msg := <-h.message:
+            // If user is muted - do nothing
+            if msg.Sender.Mute {
+                continue
+            }
+
             // Store only users' messages in DB
             if msg.Action == "message" {
                 err := msg.save()
@@ -123,12 +128,12 @@ func (h *Hub) run() {
                     log.Println("Saving message error: ", err)
                     continue
                 }
-            }
 
-            if msg.Recipient != nil {
-                log.Println(msg.Sender.Username+" TO "+msg.Recipient.Username+": "+msg.Text)
-            } else {
-                log.Println(msg.Sender.Username+": "+msg.Text)
+                if msg.Recipient != nil {
+                    log.Println(msg.Sender.Username+" TO "+msg.Recipient.Username+": "+msg.Text)
+                } else {
+                    log.Println(msg.Sender.Username+": "+msg.Text)
+                }
             }
 
             h.send(msg)

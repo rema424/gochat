@@ -11,9 +11,9 @@ CREATE TABLE auth_user
     email varchar(60) NOT NULL,
     password varchar(60) NOT NULL,
     role varchar(20) NOT NULL,
-    is_muted boolean,
+    is_muted boolean DEFAULT FALSE,
     mute_date timestamp,
-    is_banned boolean,
+    is_banned boolean DEFAULT FALSE,
     ban_date timestamp,
     PRIMARY KEY (id)
 );

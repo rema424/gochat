@@ -2,7 +2,7 @@
 
 // Interface elements
 var $board = $('#board');
-var $input = $('input[name="message"]');
+var $inputMsg = $('input[name="message"]');
 var $btnSend = $('button[name="send"]');
 var $btnMute = $('button[name="mute"]');
 var $btnKick = $('button[name="kick"]');
@@ -34,7 +34,7 @@ socket.onopen = function () {
         dataType: 'json',
         success: function(response) {
             response.forEach(function (user) {
-                addUser(user)
+                addUser(user);
             });
         },
         error: function(response) {
@@ -91,6 +91,10 @@ function addUser(user) {
         $opt.addClass('admin');
     } else if (user.role == 'admin') {
         $opt.addClass('moder');
+    }
+
+    if (user.mute) {
+        $opt.addClass('muted');
     }
 
     $userlist.append($opt);
@@ -156,18 +160,37 @@ function processMessage(msg) {
                 showMessage(msgString);
             }
             break;
+
         case 'gone_user':
             removeUser(msg.sender);
             msgString = formatMessage(msg.text, 'info');
             showMessage(msgString);
             break;
+
         case 'mute':
-        case 'ban':
-            break;
-        case 'kick':
+            $userlist
+                .find('option[value="' + msg.recipient.id + '"]')
+                .toggleClass('muted');
             msgString = formatMessage(msg.text, 'info');
             showMessage(msgString);
+
+            // Toggle disability of inputs
+            if (currentUser.id == msg.recipient.id) {
+                $inputMsg.prop(
+                    'disabled',
+                    !$inputMsg.prop('disabled')
+                );
+                $btnSend.prop(
+                    'disabled',
+                    !$btnSend.prop('disabled')
+                );
+            }
+
             break;
+
+        case 'ban':
+            break;
+
         case 'message':
             // Timestamp
             var date = formatDate(msg.send_date);
@@ -229,7 +252,7 @@ function sendMessage(text, action, recipient) {
 
 // Get data from form and call sendMessage() for it
 function submitMessageForm() {
-    var message = $input.val();
+    var message = $inputMsg.val();
     var recipient;
     var id = $userlist.val();
 
@@ -241,7 +264,7 @@ function submitMessageForm() {
     };
 
     sendMessage(message, 'message', recipient);
-    $input.val('');
+    $inputMsg.val('');
 }
 
 // Check if current user can do action
@@ -285,7 +308,7 @@ $btnSend.on('click', function (event) {
     submitMessageForm();
 });
 
-$input.on('keypress', function (event) {
+$inputMsg.on('keypress', function (event) {
     if (event.keyCode == 13) {
         event.preventDefault();
         submitMessageForm();
@@ -300,7 +323,7 @@ $board.on('click', '.msg-sender, .msg-recipient', function () {
         .prop('selected', true);
 
     $recipient.text(username);
-    $input.focus();
+    $inputMsg.focus();
 
     enableBanBtn();
 });
@@ -308,7 +331,7 @@ $board.on('click', '.msg-sender, .msg-recipient', function () {
 $userlist.on('change', function () {
     var username = $(this).find('option:selected').text();
     $recipient.text(username);
-    $input.focus();
+    $inputMsg.focus();
 
     enableMgntBtns();
 });
@@ -319,7 +342,7 @@ $recipient.on('click', function () {
     $userlist
         .find('option:selected')
         .prop('selected', false);
-    $input.focus();
+    $inputMsg.focus();
 
     enableBanBtn();
 });
@@ -337,7 +360,6 @@ $btnKick.on('click', function (event) {
     manageUser(userId, 'kick');
 });
 
-// Ban if admin only
 $btnBan.on('click', function (event) {
     event.preventDefault();
     var userId = parseInt($userlist.find('option:selected').val());

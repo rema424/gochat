@@ -23,7 +23,7 @@
     text-decoration: none;
 }
 
-/* Block for #board and control buttons */
+/* #board and control buttons */
 #board {
     float: left;
     margin-right: 20px;
@@ -69,6 +69,10 @@ select[name="users"] {
 select[name="users"] .admin,
 select[name="users"] .moder {
     color: #3c763d;
+}
+
+select[name="users"] .muted {
+    text-decoration: line-through;
 }
 
 /* Message board */

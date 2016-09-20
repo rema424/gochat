@@ -78,7 +78,7 @@ func (c *Client) readWS() {
                     log.Println("User manage error: ", err)
                     return
                 }
-                err = user.manage(c.hub, msg.Action)
+                err = user.manage(c.hub, c.user, msg.Action)
                 if err != nil {
                     log.Println("User manage error: ", err)
                     return

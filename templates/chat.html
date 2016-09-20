@@ -20,9 +20,9 @@
             <div class="form-group">
                 <div class="input-group">
                     <span class="input-group-addon recipient">@</span>
-                    <input name="message" type="text" class="form-control">
+                    <input name="message" type="text" class="form-control" {{if .User.Mute}}disabled{{end}}>
                 </div>
-                <button name="send" class="btn btn-default">Send</button>
+                <button name="send" class="btn btn-default" {{if .User.Mute}}disabled{{end}}>Send</button>
                 {{if eq .User.Role "admin"}}
                 <button name="mute" class="btn btn-default" title="Mute user" disabled>
                     <i class="glyphicon glyphicon-volume-off"></i>

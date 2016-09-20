@@ -4,20 +4,18 @@ package chat
 
 import (
     "encoding/json"
-    "errors"
     "time"
     "database/sql"
 )
 
 
 type Message struct {
-    Id        int                `json:"id"`
-    Action    string             `json:"action"`
-    Sender    *User              `json:"sender"`
-    Recipient *User              `json:"recipient"`
-    Text      string             `json:"text"`
-    SendDate  time.Time          `json:"send_date"`
-    Control   *map[string]string `json:"control"`
+    Id        int       `json:"id"`
+    Action    string    `json:"action"`
+    Sender    *User     `json:"sender"`
+    Recipient *User     `json:"recipient"`
+    Text      string    `json:"text"`
+    SendDate  time.Time `json:"send_date"`
 }
 
 
@@ -89,13 +87,8 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 }
 
 
-// Save message to database
+// TODO: Add insert/update argument
 func (m *Message) save() error {
-    // Prohibit empty messages from users
-    if m.Text == "" {
-        return errors.New("Text cannot be empty")
-    }
-
     stmt, err := db.Prepare(`
         INSERT INTO message
         (sender_id, recipient_id, text, send_date)
@@ -105,6 +98,7 @@ func (m *Message) save() error {
     if err != nil {
         return err
     }
+
     if m.Recipient != nil {
         _, err = stmt.Exec(
             &m.Sender.Id, m.Recipient.Id,

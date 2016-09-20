@@ -41,11 +41,15 @@
         <script type="text/javascript">
             // Logged in user
             var currentUser = {
-                id: {{.User.Username}},
+                id: {{.User.Id}},
                 username: {{.User.Username}},
                 fullname: {{.User.Fullname}},
                 email: {{.User.Email}},
-                role: {{.User.Role}}
+                role: {{.User.Role}},
+                mute: {{.User.Mute}},
+                muteDate: {{.User.MuteDate}},
+                ban: {{.User.Ban}},
+                banDate: {{.User.BanDate}}
             };
         </script>
     {{end}}
