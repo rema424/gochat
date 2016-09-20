@@ -34,7 +34,11 @@ type Client struct {
 func (c *Client) readWS() {
     defer func() {
         c.conn.Close()
-        c.hub.unregister <- c
+        un := &Unreg{
+            client: c,
+            msg: c.user.Username + " has gone",
+        }
+        c.hub.unregister <- un
     }()
 
     c.conn.SetReadLimit(maxMessageSize)
@@ -61,8 +65,29 @@ func (c *Client) readWS() {
             return
         }
 
-        msg.Sender = c.user
-        c.hub.message <- &msg  // send to all
+        switch msg.Action {
+        // Regular chat message
+        case "message":
+            msg.Sender = c.user
+            c.hub.message <- &msg  // send to all
+        // Control message from admin/moder
+        case "mute", "kick", "ban":
+            if c.user.checkPrivilege(msg.Action) {
+                user, err := getUserById(msg.Recipient.Id)
+                if err != nil {
+                    log.Println("User manage error: ", err)
+                    return
+                }
+                err = user.manage(c.hub, msg.Action)
+                if err != nil {
+                    log.Println("User manage error: ", err)
+                    return
+                }
+            } else {
+                log.Println("Not enough rights for action: "+msg.Action)
+                return
+            }
+        }
     }
 }
 
@@ -73,7 +98,11 @@ func (c *Client) writeWS() {
     defer func() {
         ticker.Stop()
         c.conn.Close()
-        c.hub.unregister <- c
+        un := &Unreg{
+            client: c,
+            msg: c.user.Username + " has gone",
+        }
+        c.hub.unregister <- un
     }()
 
     for {
@@ -105,7 +134,7 @@ func handlerWS(w http.ResponseWriter, r *http.Request, hub *Hub) {
         conn: conn,
         user: user,
     }
-    client.hub.register <- client
+    client.hub.register <- &Reg{client: client}
 
     go client.writeWS()
     client.readWS()

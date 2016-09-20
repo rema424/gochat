@@ -29,7 +29,7 @@ func handlerAjaxUsersList(w http.ResponseWriter, r *http.Request, hub *Hub) {
 
 
 // Last 10 messages for current user
-func handlerGetLastMessages(w http.ResponseWriter, r *http.Request) {
+func handlerAjaxGetLastMessages(w http.ResponseWriter, r *http.Request) {
     user := context.Get(r, "User").(*User)
 
     messages, err := getLastMessages(user, 10)

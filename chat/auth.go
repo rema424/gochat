@@ -3,6 +3,7 @@
 package chat
 
 import (
+    "database/sql"
     "errors"
     "log"
     "math/rand"
@@ -101,7 +102,7 @@ func checkSession(r *http.Request) (*User, error) {
     sessionId := session[1]
 
     stmt, err := db.Prepare(`
-        SELECT u.id, u.full_name, u.username, u.email, u.password
+        SELECT u.id, u.full_name, u.username, u.email, u.role
         FROM auth_session AS s
         LEFT JOIN auth_user AS u ON u.id = s.user_id
         WHERE u.username = $1
@@ -118,7 +119,7 @@ func checkSession(r *http.Request) (*User, error) {
         &user.Fullname,
         &user.Username,
         &user.Email,
-        &user.Password,
+        &user.Role,
     )
     if err != nil {
         return nil, err
@@ -131,7 +132,7 @@ func checkSession(r *http.Request) (*User, error) {
 // Check user's credentials
 func authenticate(username string, password string) (*User, error) {
     stmt, err := db.Prepare(`
-        SELECT id, full_name, username, email, password
+        SELECT id, full_name, username, email, password, role
         FROM auth_user
         WHERE username = $1
     `)
@@ -140,18 +141,22 @@ func authenticate(username string, password string) (*User, error) {
     }
 
     var user User
+    var userPassword string
     err = stmt.QueryRow(username).Scan(
         &user.Id,
         &user.Fullname,
         &user.Username,
         &user.Email,
-        &user.Password,
+        &userPassword,
+        &user.Role,
     )
-    if err != nil {
+    if err == sql.ErrNoRows {
+        return nil, errors.New("Login or password incorrect")
+    } else if err != nil {
         return nil, err
     }
 
-    if user.Password == password {
+    if userPassword == password {
         return &user, nil
     } else {
         return nil, errors.New("Login or password incorrect")

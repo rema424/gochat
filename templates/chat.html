@@ -1,24 +1,42 @@
+{{define "head"}}
+<title>Chat: Room</title>
+{{end}}
+
 {{define "content"}}
 <div class="page col-md-12">
 
     <h1>Chat</h1>
 
-    <div class="messages">
+    <div class="row">
         <div id="board"></div>
+
+        <div class="users">
+            <select name="users" class="form-control" size="10"></select>
+        </div>
+    </div>
+
+    <div class="row">
         <form class="form-inline form-message" action="">
             <div class="form-group">
                 <div class="input-group">
-                    <span id="recipient" class="input-group-addon">@</span>
-                    <input id="input-message" type="text" name="message" class="form-control">
+                    <span class="input-group-addon recipient">@</span>
+                    <input name="message" type="text" class="form-control">
                 </div>
+                <button name="send" class="btn btn-default">Send</button>
+                {{if eq .User.Role "admin"}}
+                <button name="mute" class="btn btn-default" title="Mute user" disabled>
+                    <i class="glyphicon glyphicon-volume-off"></i>
+                </button>
+                <button name="kick" class="btn btn-default" title="Kick user" disabled>
+                    <i class="glyphicon glyphicon-new-window"></i>
+                </button>
+                </button>
+                <button name="ban" class="btn btn-default" title="Ban user" disabled>
+                    <i class="glyphicon glyphicon-ban-circle"></i>
+                {{end}}
             </div>
-            <button id="btn-send" class="btn btn-primary">send</button>
         </form>
     </div>
-    <div class="users">
-        <select id="input-users" name="users" class="form-control" size="10"></select>
-    </div>
-
 </div>
 {{end}}
 

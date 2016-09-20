@@ -1,11 +1,21 @@
 // NOTE: currentUser variable is in template
 
 // Interface elements
-var $input = $('#input-message');
-var $btn = $('#btn-send');
 var $board = $('#board');
-var $userlist = $('#input-users');
-var $recipient = $('#recipient');
+var $input = $('input[name="message"]');
+var $btnSend = $('button[name="send"]');
+var $btnMute = $('button[name="mute"]');
+var $btnKick = $('button[name="kick"]');
+var $btnBan = $('button[name="ban"]');
+var $userlist = $('select[name="users"]');
+var $recipient = $('.recipient');
+
+// Permissions for managing users
+var PERMISSIONS = {
+    admin: ['mute', 'kick', 'ban'],
+    moder: ['mute', 'kick'],
+    user: []
+}
 
 //
 // WebSockets
@@ -24,12 +34,8 @@ socket.onopen = function () {
         dataType: 'json',
         success: function(response) {
             response.forEach(function (user) {
-                $userlist.append(
-                    $('<option></option>')
-                        .attr('value', user.id)
-                        .text(user.username)
-                );
-            })
+                addUser(user)
+            });
         },
         error: function(response) {
             console.log(response);
@@ -63,12 +69,39 @@ socket.onclose = function (event) {
 
 socket.onmessage = function (event) {
     var msg = JSON.parse(event.data);
+    console.log(msg);
     processMessage(msg);
 };
 
 socket.onerror = function (error) {
     showMessage(formatMessage('Error: ' + error.message, 'error'));
 };
+
+//
+// Processing users
+//
+
+// Add new user to userlist
+function addUser(user) {
+    var $opt = $('<option></option>')
+        .attr('value', user.id)
+        .html(user.username);
+
+    if (user.role == 'admin') {
+        $opt.addClass('admin');
+    } else if (user.role == 'admin') {
+        $opt.addClass('moder');
+    }
+
+    $userlist.append($opt);
+}
+
+// Remove user from userlist
+function removeUser(user) {
+    $userlist
+        .find('option[value="' + user.id + '"]')
+        .remove();
+}
 
 //
 // Processing messages
@@ -115,45 +148,52 @@ function formatDate(timestamp) {
 
 // Parse, format and display
 function processMessage(msg) {
-    if (currentUser && msg.role == 'new_user') {
-        $userlist.append(
-            $('<option></option>')
-                .attr('value', msg.sender.id)
-                .text(msg.sender.username)
-        );
-        msgString = formatMessage(msg.text, 'info');
-        showMessage(msgString);
-    } else if (msg.role == 'gone_user') {
-        $userlist
-            .find('option[value="' + msg.sender.id + '"]')
-            .remove();
-        msgString = formatMessage(msg.text, 'info');
-        showMessage(msgString);
-    } else if (msg.role == 'message') {
-        // Timestamp
-        var date = formatDate(msg.send_date);
+    switch (msg.action) {
+        case 'new_user':
+            if (currentUser) {
+                addUser(msg.sender);
+                msgString = formatMessage(msg.text, 'info');
+                showMessage(msgString);
+            }
+            break;
+        case 'gone_user':
+            removeUser(msg.sender);
+            msgString = formatMessage(msg.text, 'info');
+            showMessage(msgString);
+            break;
+        case 'mute':
+        case 'ban':
+            break;
+        case 'kick':
+            msgString = formatMessage(msg.text, 'info');
+            showMessage(msgString);
+            break;
+        case 'message':
+            // Timestamp
+            var date = formatDate(msg.send_date);
 
-        // Highlight self username
-        var isSender = msg.sender.username == currentUser.username ? ', self' : '';
+            // Highlight special users
+            var isSender = msg.sender.username == currentUser.username ? ', self' : '';
 
-        // Format and show message
-        if (msg.recipient) {
-            var isRecipient = msg.recipient.username == currentUser.username ? ', self' : '';
-            msgString =
-                formatMessage(date + ', ', 'date') +
-                formatMessage(msg.sender.username, 'sender' + isSender) +
-                formatMessage(' TO ', 'delim') +
-                formatMessage(msg.recipient.username, 'recipient' + isRecipient) +
-                formatMessage(': ', 'delim') +
-                formatMessage(msg.text, 'text');
-        } else {
-            msgString =
-                formatMessage(date + ', ', 'date') +
-                formatMessage(msg.sender.username, 'sender' + isSender) +
-                formatMessage(': ', 'delim') +
-                formatMessage(msg.text, 'text');
-        }
-        showMessage(msgString);
+            // Format and show message
+            if (msg.recipient) {
+                var isRecipient = msg.recipient.username == currentUser.username ? ', self' : '';
+                msgString =
+                    formatMessage(date + ', ', 'date') +
+                    formatMessage(msg.sender.username, msg.sender.role + ', sender' + isSender) +
+                    formatMessage(' TO ', 'delim') +
+                    formatMessage(msg.recipient.username, msg.recipient.role + ', recipient' + isRecipient) +
+                    formatMessage(': ', 'delim') +
+                    formatMessage(msg.text, 'text');
+            } else {
+                msgString =
+                    formatMessage(date + ', ', 'date') +
+                    formatMessage(msg.sender.username, msg.sender.role + ', sender' + isSender) +
+                    formatMessage(': ', 'delim') +
+                    formatMessage(msg.text, 'text');
+            }
+            showMessage(msgString);
+            break;
     }
 }
 
@@ -163,7 +203,7 @@ function processMessage(msg) {
 
 // Send message
 // role in [message, status]
-function sendMessage(text, role, recipient) {
+function sendMessage(text, action, recipient) {
     // Don't send empty messages
     if (!text) {
         return;
@@ -171,7 +211,7 @@ function sendMessage(text, role, recipient) {
 
     var msg = {
         text: text,
-        role: role
+        action: action
     };
     if (recipient) {
         msg.recipient = {
@@ -204,11 +244,43 @@ function submitMessageForm() {
     $input.val('');
 }
 
+// Check if current user can do action
+function checkPrivilege(action) {
+    if (PERMISSIONS[currentUser.role].indexOf(action) == -1) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
+// Mute, kick and ban
+function manageUser(userId, action) {
+    if (!checkPrivilege(action)) {
+        return;
+    }
+
+    var msg = {
+        recipient: {id: userId},
+        action: action
+    };
+    socket.send(JSON.stringify(msg));
+}
+
 //
 // Interface events
 //
 
-$btn.on('click', function (event) {
+// Make active mute, kick and ban buttons for admin
+function enableMgntBtns() {
+    var active = !Boolean($userlist.val());
+    if (['admin', 'moder'].indexOf(currentUser.role) > -1) {
+        $btnMute.prop('disabled', active);
+        $btnKick.prop('disabled', active);
+        $btnBan.prop('disabled', active);
+    }
+}
+
+$btnSend.on('click', function (event) {
     event.preventDefault();
     submitMessageForm();
 });
@@ -229,12 +301,16 @@ $board.on('click', '.msg-sender, .msg-recipient', function () {
 
     $recipient.text(username);
     $input.focus();
+
+    enableBanBtn();
 });
 
 $userlist.on('change', function () {
     var username = $(this).find('option:selected').text();
     $recipient.text(username);
     $input.focus();
+
+    enableMgntBtns();
 });
 
 // Clear recipient
@@ -244,4 +320,26 @@ $recipient.on('click', function () {
         .find('option:selected')
         .prop('selected', false);
     $input.focus();
+
+    enableBanBtn();
+});
+
+// Mute, kick and ban
+$btnMute.on('click', function (event) {
+    event.preventDefault();
+    var userId = parseInt($userlist.find('option:selected').val());
+    manageUser(userId, 'mute');
+});
+
+$btnKick.on('click', function (event) {
+    event.preventDefault();
+    var userId = parseInt($userlist.find('option:selected').val());
+    manageUser(userId, 'kick');
+});
+
+// Ban if admin only
+$btnBan.on('click', function (event) {
+    event.preventDefault();
+    var userId = parseInt($userlist.find('option:selected').val());
+    manageUser(userId, 'ban');
 });

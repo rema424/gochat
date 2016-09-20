@@ -11,12 +11,13 @@ import (
 
 
 type Message struct {
-    Id        int        `json:"id"`
-    Role      string     `json:"role"`
-    Sender    *User      `json:"sender"`
-    Recipient *User      `json:"recipient"`
-    Text      string     `json:"text"`
-    SendDate  time.Time  `json:"send_date"`
+    Id        int                `json:"id"`
+    Action    string             `json:"action"`
+    Sender    *User              `json:"sender"`
+    Recipient *User              `json:"recipient"`
+    Text      string             `json:"text"`
+    SendDate  time.Time          `json:"send_date"`
+    Control   *map[string]string `json:"control"`
 }
 
 
@@ -60,7 +61,7 @@ func (m *Message) UnmarshalJSON(data []byte) error {
     if tmp.Recipient != nil {
         var recipient User
         stmt, err := db.Prepare(`
-            SELECT id, username, full_name, email
+            SELECT id, username, full_name, email, role
             FROM auth_user
             WHERE id = $1
         `)
@@ -73,6 +74,7 @@ func (m *Message) UnmarshalJSON(data []byte) error {
             &recipient.Username,
             &recipient.Fullname,
             &recipient.Email,
+            &recipient.Role,
         )
         if err == sql.ErrNoRows {
             return nil
@@ -121,12 +123,12 @@ func (m *Message) save() error {
 
 
 func getLastMessages(user *User, limit int) ([]Message, error) {
-    var messages []Message
+    messages := []Message{}
 
     stmt, err := db.Prepare(`
         SELECT *
         FROM (
-            SELECT u.id, u.username, u.full_name, u.email,
+            SELECT u.id, u.username, u.full_name, u.email, u.role,
                 m.id, 'message', m.text, m.send_date,
                 m.recipient_id IS NULL
             FROM message AS m
@@ -149,18 +151,19 @@ func getLastMessages(user *User, limit int) ([]Message, error) {
     }
 
     var msg Message
-    var sender User
+    var sender *User
     var isBroadcast bool
 
     for rows.Next() {
+        sender = &User{}
         msg = Message{}
         err = rows.Scan(
-            &sender.Id, &sender.Username, &sender.Fullname, &sender.Email,
-            &msg.Id, &msg.Role, &msg.Text, &msg.SendDate, &isBroadcast)
+            &sender.Id, &sender.Username, &sender.Fullname, &sender.Email, &sender.Role,
+            &msg.Id, &msg.Action, &msg.Text, &msg.SendDate, &isBroadcast)
         if err != nil {
             return []Message{}, err
         }
-        msg.Sender = &sender
+        msg.Sender = sender
         if !isBroadcast {
             msg.Recipient = user
         }

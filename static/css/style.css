@@ -23,13 +23,10 @@
     text-decoration: none;
 }
 
-/* Block for #board and #input-message */
-.messages {
-    float: left;
-    margin-right: 10px;
-}
-
+/* Block for #board and control buttons */
 #board {
+    float: left;
+    margin-right: 20px;
     width: 600px;
     height: 300px;
     margin-bottom: 10px;
@@ -45,18 +42,33 @@
     width: 496px;
 }
 
-#recipient {
+.recipient {
     cursor: pointer;
 }
 
-#btn-send {
+button[name="send"] {
     width: 100px;
+    margin-right: 16px;
+}
+
+button[name="mute"],
+button[name="kick"],
+button[name="ban"] {
+    width: 40px;
+    font-size: 20px;
+    line-height: 14px;
+    padding-left: 10px;
 }
 
 /* List of all users */
-#input-users {
+select[name="users"] {
     width: 200px;
     height: 300px;
+}
+
+select[name="users"] .admin,
+select[name="users"] .moder {
+    color: #3c763d;
 }
 
 /* Message board */
@@ -75,6 +87,11 @@
 .msg-sender,
 .msg-recipient {
     cursor: pointer;
+}
+
+.msg-admin,
+.msg-moder {
+    color: #3c763d !important;
 }
 
 .msg-text {

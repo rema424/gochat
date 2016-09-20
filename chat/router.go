@@ -18,7 +18,7 @@ func makeRouter(h *Hub) {
     )
     http.HandleFunc(
         "/ajax/messages/last",
-        authMiddleware(handlerGetLastMessages),
+        authMiddleware(handlerAjaxGetLastMessages),
     )
 
     // WS

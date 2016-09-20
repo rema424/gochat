@@ -16,17 +16,25 @@ type Hub struct {
     clients    map[*Client]bool
     message    chan *Message
     info       chan *Message
-    register   chan *Client
-    unregister chan *Client
+    register   chan *Reg
+    unregister chan *Unreg
 }
 
+type Reg struct {
+    client *Client
+}
+
+type Unreg struct {
+    client *Client
+    msg    string
+}
 
 func makeHub() *Hub {
     h := &Hub{
         clients: make(map[*Client]bool),
         message: make(chan *Message),
-        register:  make(chan *Client),
-        unregister: make(chan *Client),
+        register:  make(chan *Reg),
+        unregister: make(chan *Unreg),
     }
 
     return h
@@ -35,13 +43,17 @@ func makeHub() *Hub {
 
 func (h *Hub) send(msg *Message) {
     for client := range h.clients {
+        // Gone messages are sent to everyone (including sender)
+        isGoneMsg := msg.Action == "gone_user"
         // Don't send self messages
-        toSelf := client.user == msg.Sender
+        toSelf := msg.Sender != nil && client.user.Id == msg.Sender.Id
         // Send only to recipient or if it is broadcast
         isBroadcast := msg.Recipient == nil
         isRecipient := !isBroadcast && (client.user.Id == msg.Recipient.Id)
 
-        if !toSelf && (isBroadcast || isRecipient) {
+        doSend := isGoneMsg || (!toSelf && (isBroadcast || isRecipient))
+
+        if doSend {
             msgJson, err := json.Marshal(msg)
             if err != nil {
                 log.Println("JSON encoding error: ", err)
@@ -66,13 +78,14 @@ func (h *Hub) run() {
     for {
         select {
         // Add client to chat
-        case client := <-h.register:
+        case reg := <-h.register:
+            client := reg.client
             log.Println("Registered: "+client.user.Username)
             h.clients[client] = true
 
             // Tell everyone (except new user) about new user
             msg := &Message{
-                Role: "new_user",
+                Action: "new_user",
                 Sender: client.user,
                 Text: client.user.Username + " joined the room",
                 SendDate: time.Now(),
@@ -80,16 +93,18 @@ func (h *Hub) run() {
             h.send(msg)
 
         // Remove client from chat
-        case client := <-h.unregister:
+        case unreg := <-h.unregister:
+            client := unreg.client
+            msg := unreg.msg
             _, alive := h.clients[client]
             if alive {
                 log.Println("Unregistered: "+client.user.Username)
 
                 // Tell everyone about user has gone
                 msg := &Message{
-                    Role: "gone_user",
+                    Action: "gone_user",
                     Sender: client.user,
-                    Text: client.user.Username + " has gone",
+                    Text: msg,
                     SendDate: time.Now(),
                 }
                 h.send(msg)
@@ -102,7 +117,7 @@ func (h *Hub) run() {
         // message (no recipient and recieve date)
         case msg := <-h.message:
             // Store only users' messages in DB
-            if msg.Role == "message" {
+            if msg.Action == "message" {
                 err := msg.save()
                 if err != nil {
                     log.Println("Saving message error: ", err)
