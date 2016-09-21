@@ -102,8 +102,7 @@ func checkSession(r *http.Request) (*User, error) {
     sessionId := session[1]
 
     stmt, err := db.Prepare(`
-        SELECT u.id, u.full_name, u.username, u.email, u.role,
-            u.is_muted, u.mute_date, u.is_banned, u.ban_date
+        SELECT u.id, u.full_name, u.username, u.email
         FROM auth_session AS s
         LEFT JOIN auth_user AS u ON u.id = s.user_id
         WHERE u.username = $1
@@ -116,12 +115,11 @@ func checkSession(r *http.Request) (*User, error) {
 
     var user User
     err = stmt.QueryRow(username, sessionId).Scan(
-        &user.Id, &user.Fullname, &user.Username,
-        &user.Email, &user.Role,
-        &user.Mute, &user.MuteDate,
-        &user.Ban, &user.BanDate,
+        &user.Id, &user.Fullname, &user.Username, &user.Email,
     )
-    if err != nil {
+    if err == sql.ErrNoRows {
+        return nil, errors.New("No session found")
+    } else if err != nil {
         return nil, err
     }
 

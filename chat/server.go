@@ -14,6 +14,10 @@ import (
 // Global connection to DB
 var db *sql.DB
 
+// Global storage of hubs (one per room)
+// Room.Id: *Hub
+var hubs = make(map[int]*Hub)
+
 
 // Log either to file or to stdout
 func setLogOutput(mode string, dir string, file string) (*os.File, error) {
@@ -82,12 +86,20 @@ func RunServer(settings map[string]string) {
         defer db.Close()
     }
 
-    // Messages exchanging (websockets)
-    hub := makeHub()
-    go hub.run()
+    // Messages exchanging (websockets) for each room
+    rooms, err := getAllRooms()
+    if err != nil {
+        panic(err.Error())
+    }
+
+    for _, room := range rooms {
+        hub := makeHub(&room)
+        hubs[room.Id] = hub
+        go hub.run()
+    }
 
     // Bind routes to URLs
-    makeRouter(hub)
+    makeRouter()
 
     // Run server
     port := "8080"

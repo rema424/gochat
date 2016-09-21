@@ -17,44 +17,21 @@ var PERMISSIONS = {
     user: []
 }
 
+// All users in the room
+var allUsers = {}
+
 //
 // WebSockets
 //
 
 // WebSocket init
-var socket = new WebSocket("ws://gochat.local/ws");
+var socket = new WebSocket("ws://gochat.local/ws/rooms/" + currentRoom.id);
 
 // WebSocket events
 socket.onopen = function () {
     showMessage(formatMessage('Connected', 'info'));
-
-    // Get userlist
-    $.getJSON({
-        url: '/ajax/users',
-        dataType: 'json',
-        success: function(response) {
-            response.forEach(function (user) {
-                addUser(user);
-            });
-        },
-        error: function(response) {
-            console.log(response);
-        }
-    });
-
-    // Get last messages
-    $.getJSON({
-        url: '/ajax/messages/last',
-        dataType: 'json',
-        success: function(response) {
-            response.forEach(function (msg) {
-                processMessage(msg);
-            })
-        },
-        error: function(response) {
-            console.log(response);
-        }
-    });
+    getAllUsers();
+    getLastMessages();
 };
 
 socket.onclose = function (event) {
@@ -81,8 +58,26 @@ socket.onerror = function (error) {
 // Processing users
 //
 
+// Get all users of the room
+function getAllUsers() {
+    $.getJSON({
+        url: '/ajax//rooms/' + currentRoom.id + '/users',
+        dataType: 'json',
+        success: function(response) {
+            response.forEach(function (user) {
+                addUser(user);
+            });
+        },
+        error: function(response) {
+            console.log(response);
+        }
+    });
+}
+
 // Add new user to userlist
 function addUser(user) {
+    allUsers[user.id] = user;
+
     var $opt = $('<option></option>')
         .attr('value', user.id)
         .html(user.username);
@@ -102,6 +97,8 @@ function addUser(user) {
 
 // Remove user from userlist
 function removeUser(user) {
+    delete allUsers[user.id];
+
     $userlist
         .find('option[value="' + user.id + '"]')
         .remove();
@@ -110,6 +107,22 @@ function removeUser(user) {
 //
 // Processing messages
 //
+
+function getLastMessages() {
+    // Get last messages
+    $.getJSON({
+        url: '/ajax/rooms/' + currentRoom.id + '/messages',
+        dataType: 'json',
+        success: function(response) {
+            response.forEach(function (msg) {
+                processMessage(msg);
+            })
+        },
+        error: function(response) {
+            console.log(response);
+        }
+    });
+}
 
 // Display message
 function showMessage(msg) {
@@ -198,7 +211,7 @@ function processMessage(msg) {
             // Timestamp
             var date = formatDate(msg.send_date);
 
-            // Highlight special users
+            // Highlight self
             var isSender = msg.sender.username == currentUser.username ? ', self' : '';
 
             // Format and show message
@@ -240,10 +253,7 @@ function sendMessage(text, action, recipient) {
         action: action
     };
     if (recipient) {
-        msg.recipient = {
-            id: parseInt(recipient.id),
-            username: recipient.username
-        };
+        msg.recipient = recipient;
     }
     socket.send(JSON.stringify(msg));
 
@@ -257,13 +267,10 @@ function sendMessage(text, action, recipient) {
 function submitMessageForm() {
     var message = $inputMsg.val();
     var recipient;
-    var id = $userlist.val();
+    var recipientId = $userlist.val();
 
-    if (id) {
-        recipient = {
-            id: $userlist.val(),
-            username: $userlist.find('option:selected').text().trim()
-        }
+    if (recipientId) {
+        recipient = allUsers[recipientId];
     };
 
     sendMessage(message, 'message', recipient);

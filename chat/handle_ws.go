@@ -6,6 +6,8 @@ import (
     "encoding/json"
     "log"
     "net/http"
+    "strconv"
+    "strings"
     "time"
 
     "github.com/gorilla/context"
@@ -78,7 +80,8 @@ func (c *Client) readWS() {
                     log.Println("User manage error: ", err)
                     return
                 }
-                err = user.manage(c.hub, c.user, msg.Action)
+                room := c.hub.room
+                err = room.manage(c.user, user, msg.Action)
                 if err != nil {
                     log.Println("User manage error: ", err)
                     return
@@ -119,7 +122,21 @@ func (c *Client) writeWS() {
 }
 
 
-func handlerWS(w http.ResponseWriter, r *http.Request, hub *Hub) {
+func handlerWS(w http.ResponseWriter, r *http.Request) {
+    p := strings.Split(r.URL.Path, "/")
+    roomId, err := strconv.Atoi(p[len(p)-1])
+    if err != nil {
+        log.Println("Invalid room ID: ", err)
+        return
+    }
+
+    // Get hub from global hubs map
+    hub, ok := hubs[roomId]
+    if !ok {
+        log.Println("No hub for this room: ", err)
+        return
+    }
+
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
         log.Println("Open connection error: ", err)

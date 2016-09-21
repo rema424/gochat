@@ -3,9 +3,9 @@
 package chat
 
 import (
+    "database/sql"
     "time"
-    "errors"
-    "log"
+    // "log"
 )
 
 
@@ -16,10 +16,6 @@ type User struct {
     Email    string     `json:"email"`
     Password string     `json:"-"`
     Role     string     `json:"role"`
-    // Penalties
-    Ban      bool       `json:"ban"`
-    BanDate  *time.Time `json:"ban_date"`
-    Mute     bool       `json:"mute"`
     MuteDate *time.Time `json:"mute_date"`
 }
 
@@ -38,13 +34,7 @@ func (u *User) save() error {
         SET
             full_name = $2,
             username = $3,
-            email = $4,
-            password = $5,
-            role = $6,
-            is_muted = $7,
-            mute_date = $8,
-            is_banned = $9,
-            ban_date = $10
+            email = $4
         WHERE id = $1
     `)
     if err != nil {
@@ -52,88 +42,13 @@ func (u *User) save() error {
     }
 
     _, err = stmt.Exec(
-        &u.Id, &u.Fullname, &u.Username,
-        &u.Email, &u.Password, &u.Role,
-        &u.Mute, &u.MuteDate,
-        &u.Ban, &u.BanDate)
+        &u.Id, &u.Fullname, &u.Username, &u.Email,
+    )
     if err != nil {
         return err
     }
 
     return nil
-}
-
-
-// Mute, kick, ban
-func (u *User) manage(h *Hub, admin *User, act string) error {
-    var t string
-    now := time.Now().UTC()
-
-    switch act {
-    case "mute":
-        u.Mute = !u.Mute
-        if u.Mute {
-            u.MuteDate = &now
-            t = u.Username + " has been muted"
-        } else {
-            u.MuteDate = nil
-            t = u.Username + " has been unmuted"
-        }
-
-        err := u.save()
-        if err != nil {
-            return err
-        }
-
-        msg := &Message{
-            Action: "mute",
-            Sender: admin,
-            Recipient: u,
-            Text: t,
-            SendDate: time.Now().UTC(),
-        }
-        h.message <- msg
-        log.Println("Muted: "+u.Username)
-
-        return nil
-
-    case "kick":
-        for c := range h.clients {
-            if c.user.Id == u.Id {
-                un := &Unreg{
-                    client: c,
-                    msg: u.Username + " has been kicked",
-                }
-                h.unregister <- un
-            }
-        }
-        log.Println("Kicked: "+u.Username)
-        return nil
-
-    case "ban":
-        u.Ban = true
-        u.BanDate = &now
-
-        err := u.save()
-        if err != nil {
-            return err
-        }
-
-        for c := range h.clients {
-            if c.user.Id == u.Id {
-                un := &Unreg{
-                    client: c,
-                    msg: u.Username + " has been banned",
-                }
-                h.unregister <- un
-            }
-        }
-
-        return nil
-    }
-
-
-    return errors.New("Wrong action: "+act)
 }
 
 
@@ -143,10 +58,37 @@ func (u *User) checkPrivilege(act string) bool {
 }
 
 
+// Add role and mute data in the room for the user
+func (u *User) addRoomInfo(roomId int) error {
+    stmt, err := db.Prepare(`
+        SELECT
+            CASE
+                WHEN rn.name IS NULL THEN 'user'
+                ELSE rn.name
+            END AS role,
+            m.date
+        FROM room AS r
+        LEFT JOIN room_role AS rr ON rr.room_id = r.id AND rr.user_id = $1
+        LEFT JOIN role_name AS rn ON rr.role_id = rn.id
+        LEFT JOIN mute AS m ON m.room_id = r.id AND rr.user_id = $1
+        WHERE r.id = $2
+    `)
+    if err != nil {
+        return err
+    }
+
+    err = stmt.QueryRow(u.Id, roomId).Scan(&u.Role, &u.MuteDate)
+    if err != nil && err != sql.ErrNoRows {
+        return err
+    } else {
+        return nil
+    }
+}
+
+
 func getUserById(id int) (*User, error) {
     stmt, err := db.Prepare(`
-        SELECT id, full_name, username, email, role,
-            is_muted, mute_date, is_banned, ban_date
+        SELECT id, full_name, username, email
         FROM auth_user
         WHERE id = $1
     `)
@@ -156,10 +98,7 @@ func getUserById(id int) (*User, error) {
 
     var user User
     err = stmt.QueryRow(id).Scan(
-        &user.Id, &user.Fullname, &user.Username,
-        &user.Email, &user.Role,
-        &user.Mute, &user.MuteDate,
-        &user.Ban, &user.BanDate,
+        &user.Id, &user.Fullname, &user.Username, &user.Email,
     )
     if err != nil {
         return nil, err

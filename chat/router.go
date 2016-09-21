@@ -5,45 +5,50 @@ package chat
 
 import (
     "net/http"
+    "github.com/gorilla/mux"
 )
 
 
-func makeRouter(h *Hub) {
+func makeRouter() {
+    r := mux.NewRouter()
+
     // AJAX
-    http.HandleFunc(
-        "/ajax/users",
-        authMiddleware(func(w http.ResponseWriter, r *http.Request) {
-            handlerAjaxUsersList(w, r, h)
-        }),
+    r.HandleFunc(
+        "/ajax/rooms/{id:[0-9]+}/users",
+        authMiddleware(handlerAjaxGetRoomUsers),
     )
-    http.HandleFunc(
-        "/ajax/messages/last",
-        authMiddleware(handlerAjaxGetLastMessages),
+    r.HandleFunc(
+        "/ajax/rooms/{id:[0-9]+}/messages",
+        authMiddleware(handlerAjaxGetRoomMessages),
     )
 
     // WS
-    http.HandleFunc(
-        "/ws",
-        authMiddleware(func(w http.ResponseWriter, r *http.Request) {
-            handlerWS(w, r, h)
-        }),
+    r.HandleFunc(
+        "/ws/rooms/{id:[0-9]+}",
+        authMiddleware(handlerWS),
     )
 
     // Pages
-    http.HandleFunc(
+    r.HandleFunc(
         "/login",
         handlerLoginPage,
     )
-    http.HandleFunc(
+    r.HandleFunc(
         "/logout",
         authMiddleware(handlerLogout),
     )
-    http.HandleFunc(
-        "/chat",
+    r.HandleFunc(
+        "/chat/rooms/{id:[0-9]+}",
         authMiddleware(handlerChatPage),
     )
-    http.HandleFunc(
+    r.HandleFunc(
+        "/chat",
+        authMiddleware(handlerIndexPage),
+    )
+    r.HandleFunc(
         "/",
         authMiddleware(handlerIndexPage),
     )
+
+    http.Handle("/", r)
 }

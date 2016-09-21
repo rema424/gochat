@@ -6,17 +6,22 @@ import (
     "encoding/json"
     "log"
     "net/http"
+    "strconv"
 
     "github.com/gorilla/context"
+    "github.com/gorilla/mux"
 )
 
 
 // Return all users from chat
-func handlerAjaxUsersList(w http.ResponseWriter, r *http.Request, hub *Hub) {
-    users := []*User{}
-    for c := range(hub.clients) {
-        users = append(users, c.user)
-    }
+func handlerAjaxGetRoomUsers(w http.ResponseWriter, r *http.Request) {
+    vars := mux.Vars(r)
+
+    // No need to check errors - regex in mux controlls input
+    roomId, _ := strconv.Atoi(vars["id"])
+
+    hub := hubs[roomId]
+    users := hub.room.getUsers()
 
     resp, err := json.Marshal(users)
 
@@ -29,11 +34,15 @@ func handlerAjaxUsersList(w http.ResponseWriter, r *http.Request, hub *Hub) {
 
 
 // Last 10 messages for current user
-func handlerAjaxGetLastMessages(w http.ResponseWriter, r *http.Request) {
+func handlerAjaxGetRoomMessages(w http.ResponseWriter, r *http.Request) {
+    vars := mux.Vars(r)
     user := context.Get(r, "User").(*User)
 
-    messages, err := getLastMessages(user, 10)
-    // TODO: Error message for client
+    // No need to check errors - regex in mux controlls input
+    roomId, _ := strconv.Atoi(vars["id"])
+    room := hubs[roomId].room
+
+    messages, err := room.getMessages(user, 10)
     if err != nil {
         log.Println(err)
         return

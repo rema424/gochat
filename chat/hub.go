@@ -14,6 +14,7 @@ import (
 
 type Hub struct {
     clients    map[*Client]bool
+    room       *Room
     message    chan *Message
     info       chan *Message
     register   chan *Reg
@@ -29,13 +30,17 @@ type Unreg struct {
     msg    string
 }
 
-func makeHub() *Hub {
+func makeHub(room *Room) *Hub {
     h := &Hub{
         clients: make(map[*Client]bool),
+        room: room,
         message: make(chan *Message),
         register:  make(chan *Reg),
         unregister: make(chan *Unreg),
     }
+
+    // Make reverse relation
+    h.room.hub = h
 
     return h
 }
@@ -117,7 +122,7 @@ func (h *Hub) run() {
         // message (no recipient and recieve date)
         case msg := <-h.message:
             // If user is muted - do nothing
-            if msg.Sender.Mute {
+            if msg.Sender.MuteDate != nil {
                 continue
             }
 
