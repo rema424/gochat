@@ -7,6 +7,7 @@ var $btnSend = $('button[name="send"]');
 var $btnMute = $('button[name="mute"]');
 var $btnKick = $('button[name="kick"]');
 var $btnBan = $('button[name="ban"]');
+var $btnExit = $('button[name="exit"]');
 var $userlist = $('select[name="users"]');
 var $recipient = $('.recipient');
 
@@ -374,4 +375,9 @@ $btnBan.on('click', function (event) {
     event.preventDefault();
     var userId = parseInt($userlist.find('option:selected').val());
     manageUser(userId, 'ban');
+});
+
+$btnExit.on('click', function (event) {
+    event.preventDefault();
+    window.location.href = '/';
 });
