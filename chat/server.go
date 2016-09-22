@@ -3,103 +3,67 @@
 package chat
 
 import (
+    "fmt"
     "log"
     "net/http"
-    "os"
     "database/sql"
 
     _ "github.com/lib/pq"
 )
 
-// Global connection to DB
-var db *sql.DB
+// Global DB connection
+var (
+    db                     *sql.DB
+    stmtGetUserFromSession *sql.Stmt
+)
 
-// Global storage of hubs (one per room)
-// Room.Id: *Hub
-var hubs = make(map[int]*Hub)
 
-
-// Log either to file or to stdout
-func setLogOutput(mode string, dir string, file string) (*os.File, error) {
-    var f *os.File
-
-    if mode == "file" {
-        // Make logs dirs if it's not already exists
-        _, err := os.Stat(dir)
-        if os.IsNotExist(err) {
-            os.Mkdir(dir, 0700)
-        }
-        // Write logs to file
-        f, err = os.OpenFile(dir+"/"+file, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0600)
-        if err != nil {
-            return nil, err
-        }
-        log.SetOutput(f)
-    } else if mode == "stdout" {
-        log.SetOutput(os.Stdout)
+func prepareStmt(db *sql.DB, query string) *sql.Stmt {
+    stmt, err := db.Prepare(query)
+    if err != nil {
+        log.Fatal("Could not prepare '" + query + "': " + err.Error())
     }
-
-    return f, nil
+    return stmt
 }
 
 
-// Static files served either by Nginx or by Go FileServer
-func setStaticMode(mode string) {
-    if mode == "self" {
-        fs := http.Dir("static")
-        fileHandler := http.FileServer(fs)
-        http.Handle("/static/", http.StripPrefix("/static/", fileHandler))
-    } else if mode == "separate" {
-        // do nothing (static files are served by Nginx)
-    }
+func initStmt() {
+    stmtGetUserFromSession = prepareStmt(db, `
+        SELECT u.id, u.full_name, u.username, u.email
+        FROM auth_session AS s
+        LEFT JOIN auth_user AS u ON u.id = s.user_id
+        WHERE s.key = $1 AND s.expire_date > CURRENT_TIMESTAMP
+    `)
 }
 
 
 func RunServer(settings map[string]string) {
     var err error
 
-    // Logs
-    f, err := setLogOutput(
-        settings["logMode"],
-        settings["logDir"],
-        settings["logFile"],
-    )
-    if err != nil {
-        panic(err.Error())
-    } else if f != nil {
-        defer f.Close()
-    }
-
-    // Static files
-    setStaticMode(settings["staticMode"])
-
-    // DB connect (using global variable)
-    db, err = dbConnect(
+    // Connect to DB
+    dbConnection := fmt.Sprintf(
+        "user=%s password=%s dbname=%s",
         settings["dbUser"],
         settings["dbPass"],
         settings["dbName"],
     )
-    if err != nil {
-        panic(err.Error())
-    } else {
-        log.Println("DB connected successfully")
-        defer db.Close()
-    }
-
-    // Messages exchanging (websockets) for each room
-    rooms, err := getAllRooms()
+    db, err = sql.Open("postgres", dbConnection)
     if err != nil {
         panic(err.Error())
     }
-
-    for _, room := range rooms {
-        hub := makeHub(room)
-        hubs[room.Id] = hub
-        go hub.run()
+    err = db.Ping()
+    if err != nil {
+        panic(err.Error())
     }
+    log.Println("DB connected successfully")
+    defer db.Close()
+
+    initStmt()
 
     // Bind routes to URLs
-    makeRouter()
+    http.HandleFunc("/login", handlerLoginPage)
+    http.HandleFunc("/logout", authMiddleware(handlerLogout))
+    http.HandleFunc("/", authMiddleware(handlerIndexPage))
 
     // Run server
     port := "8080"

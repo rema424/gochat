@@ -14,6 +14,14 @@ import (
     "github.com/gorilla/context"
 )
 
+type User struct {
+    Id       int        `json:"id"`
+    Fullname string     `json:"fullname"`
+    Username string     `json:"username"`
+    Email    string     `json:"email"`
+    Password string     `json:"-"`
+}
+
 
 func makeSessionKey() string {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -46,7 +54,7 @@ func makeSession(w http.ResponseWriter, user *User) error {
 
     cookie := http.Cookie{
         Name: "SessionID",
-        Value: user.Username + ":" + key,
+        Value: key,
         Expires: exp,
     }
     http.SetCookie(w, &cookie)
@@ -91,30 +99,16 @@ func removeSession(w http.ResponseWriter, r *http.Request) error {
 
 
 // Check session cookie
-func checkSession(r *http.Request) (*User, error) {
+func getUserFromSession(r *http.Request) (*User, error) {
     cookie, err := r.Cookie("SessionID")
     if err != nil {
         return nil, errors.New("No cookie found")
     }
 
-    session := strings.Split(cookie.Value, ":")
-    username := session[0]
-    sessionId := session[1]
-
-    stmt, err := db.Prepare(`
-        SELECT u.id, u.full_name, u.username, u.email
-        FROM auth_session AS s
-        LEFT JOIN auth_user AS u ON u.id = s.user_id
-        WHERE u.username = $1
-            AND s.key = $2
-            AND s.expire_date > CURRENT_TIMESTAMP
-    `)
-    if err != nil {
-        return nil, err
-    }
+    sessionId := cookie.Value
 
     var user User
-    err = stmt.QueryRow(username, sessionId).Scan(
+    err = stmtGetUserFromSession.QueryRow(sessionId).Scan(
         &user.Id, &user.Fullname, &user.Username, &user.Email,
     )
     if err == sql.ErrNoRows {
@@ -123,6 +117,8 @@ func checkSession(r *http.Request) (*User, error) {
         return nil, err
     }
 
+    // user := User{Id: 1, Username: "admin"}
+
     return &user, nil
 }
 
@@ -130,7 +126,7 @@ func checkSession(r *http.Request) (*User, error) {
 // Check user's credentials
 func authenticate(username string, password string) (*User, error) {
     stmt, err := db.Prepare(`
-        SELECT id, full_name, username, email, password, role
+        SELECT id, full_name, username, email, password
         FROM auth_user
         WHERE username = $1
     `)
@@ -146,7 +142,6 @@ func authenticate(username string, password string) (*User, error) {
         &user.Username,
         &user.Email,
         &userPassword,
-        &user.Role,
     )
     if err == sql.ErrNoRows {
         return nil, errors.New("Login or password incorrect")
@@ -165,8 +160,8 @@ func authenticate(username string, password string) (*User, error) {
 // Middleware for authentication
 func authMiddleware(handler http.HandlerFunc) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
-        // Check auth
-        user, err := checkSession(r)
+        // Check auth and get user
+        user, err := getUserFromSession(r)
 
         // User is not authenticated
         if err != nil {
