@@ -5,10 +5,7 @@ package chat
 
 import (
     "log"
-    "encoding/json"
     "time"
-
-    "github.com/gorilla/websocket"
 )
 
 
@@ -59,21 +56,7 @@ func (h *Hub) send(msg *Message) {
         doSend := toAll || (!toSelf && (isBroadcast || isRecipient))
 
         if doSend {
-            msgJson, err := json.Marshal(msg)
-            if err != nil {
-                log.Println("JSON encoding error: ", err)
-                continue
-            }
-
-            err = client.conn.WriteMessage(
-                websocket.TextMessage,
-                msgJson,
-            )
-            if err != nil {
-                log.Println("Write error: ", err)
-                client.conn.Close()
-                delete(h.clients, client)
-            }
+            client.message <- msg
         }
     }
 }

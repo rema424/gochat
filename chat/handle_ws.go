@@ -27,9 +27,10 @@ var upgrader = websocket.Upgrader{
 }
 
 type Client struct {
-    hub  *Hub
-    conn *websocket.Conn
-    user *User
+    hub     *Hub
+    conn    *websocket.Conn
+    user    *User
+    message chan *Message
 }
 
 
@@ -112,6 +113,24 @@ func (c *Client) writeWS() {
 
     for {
         select {
+        // Messages for this client
+        case msg := <-c.message:
+            msgJson, err := json.Marshal(msg)
+            if err != nil {
+                log.Println("JSON encoding error: ", err)
+                continue
+            }
+
+            err = c.conn.WriteMessage(
+                websocket.TextMessage,
+                msgJson,
+            )
+            if err != nil {
+                log.Println("Write error: ", err)
+                c.conn.Close()
+                delete(c.hub.clients, c)
+            }
+
         // Heartbeat
         case <- ticker.C:
             err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
@@ -152,6 +171,7 @@ func handlerWS(w http.ResponseWriter, r *http.Request) {
         hub: hub,
         conn: conn,
         user: user,
+        message: make(chan *Message),
     }
     client.hub.register <- &Reg{client: client}
 
