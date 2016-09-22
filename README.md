@@ -1,6 +1,6 @@
 Description
 ===========
-Simple chat in Go.
+Multiroom websocket chat in Go.
 
 Install
 =======
