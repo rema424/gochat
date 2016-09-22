@@ -16,6 +16,7 @@ type Message struct {
     Recipient *User     `json:"recipient"`
     Text      string    `json:"text"`
     SendDate  time.Time `json:"send_date"`
+    Room      *Room     `json:"-"`
 }
 
 
@@ -91,23 +92,22 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 func (m *Message) save() error {
     stmt, err := db.Prepare(`
         INSERT INTO message
-        (sender_id, recipient_id, text, send_date)
+        (room_id, sender_id, recipient_id, text, send_date)
         VALUES
-        ($1, $2, $3, $4)
+        ($1, $2, $3, $4, $5)
     `)
     if err != nil {
         return err
     }
 
+    var recipientId *int
     if m.Recipient != nil {
-        _, err = stmt.Exec(
-            &m.Sender.Id, m.Recipient.Id,
-            &m.Text, &m.SendDate)
-    } else {
-        _, err = stmt.Exec(
-            &m.Sender.Id, nil,
-            &m.Text, &m.SendDate)
+        recipientId = &m.Recipient.Id
     }
+
+    _, err = stmt.Exec(
+        m.Room.Id, m.Sender.Id, recipientId, m.Text, m.SendDate,
+    )
     if err != nil {
         return err
     }

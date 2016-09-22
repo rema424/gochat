@@ -4,7 +4,9 @@
 
 {{define "content"}}
 <div class="page col-md-12">
-    <h1><a href="/chat/rooms/1">Room #1</a></h1>
+    {{range $room := .Rooms}}
+        <h1><a href="/chat/rooms/{{$room.Id}}">{{$room.Name}}</a></h1>
+    {{end}}
 </div>
 {{end}}
 

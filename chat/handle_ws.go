@@ -67,6 +67,8 @@ func (c *Client) readWS() {
             return
         }
 
+        msg.Room = c.hub.room
+
         switch msg.Action {
         // Regular chat message
         case "message":

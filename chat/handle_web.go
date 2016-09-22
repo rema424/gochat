@@ -87,10 +87,18 @@ func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    rooms, err := getAllRooms()
+    if err != nil {
+        log.Println("Getting rooms error: ", err)
+        return
+    }
+
     ctx := struct {
         User *User
+        Rooms []*Room
     } {
         context.Get(r, "User").(*User),
+        rooms,
     }
     tpl, _ := template.ParseFiles("templates/index.html", "templates/base.html")
     tpl.ExecuteTemplate(w, "base", ctx)

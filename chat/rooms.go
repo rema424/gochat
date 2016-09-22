@@ -97,6 +97,7 @@ func (r *Room) manage(admin *User, user *User, act string) error {
             Recipient: user,
             Text: t,
             SendDate: time.Now().UTC(),
+            Room: r,
         }
         r.hub.message <- msg
         log.Println("Muted: "+user.Username)
@@ -147,8 +148,8 @@ func (r *Room) getUsers() []*User {
 }
 
 
-func (r *Room) getMessages(user *User, limit int) ([]Message, error) {
-    var messages []Message
+func (r *Room) getMessages(user *User, limit int) ([]*Message, error) {
+    var messages []*Message
 
     stmt, err := db.Prepare(`
         SELECT *
@@ -178,13 +179,13 @@ func (r *Room) getMessages(user *User, limit int) ([]Message, error) {
         return messages, nil
     }
 
-    var msg Message
+    var msg *Message
     var sender *User
     var isBroadcast bool
 
     for rows.Next() {
         sender = &User{}
-        msg = Message{}
+        msg = &Message{}
         err = rows.Scan(
             &sender.Id, &sender.Username, &sender.Fullname, &sender.Email, &sender.Role,
             &msg.Id, &msg.Action, &msg.Text, &msg.SendDate, &isBroadcast)
@@ -204,8 +205,8 @@ func (r *Room) getMessages(user *User, limit int) ([]Message, error) {
 }
 
 
-func getAllRooms() ([]Room, error) {
-    var rooms []Room
+func getAllRooms() ([]*Room, error) {
+    var rooms []*Room
 
     stmt, err := db.Prepare(`
         SELECT id, name
@@ -222,9 +223,9 @@ func getAllRooms() ([]Room, error) {
         return rooms, nil
     }
 
-    var room Room
+    var room *Room
     for rows.Next() {
-        room = Room{}
+        room = &Room{}
         err = rows.Scan(&room.Id, &room.Name)
         if err != nil {
             return rooms, err

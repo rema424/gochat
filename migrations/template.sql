@@ -11,11 +11,9 @@ BEGIN
         RAISE EXCEPTION 'Wrong DB version';
     END IF;
 
-    -- --
-
+    --
     -- INSERT YOUR MIGRATION CODE HERE
-
-    -- --
+    --
 
     INSERT INTO db_version (version) VALUES (new_version);
 END

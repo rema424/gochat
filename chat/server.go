@@ -93,7 +93,7 @@ func RunServer(settings map[string]string) {
     }
 
     for _, room := range rooms {
-        hub := makeHub(&room)
+        hub := makeHub(room)
         hubs[room.Id] = hub
         go hub.run()
     }
