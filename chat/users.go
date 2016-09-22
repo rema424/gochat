@@ -70,7 +70,7 @@ func (u *User) addRoomInfo(roomId int) error {
         FROM room AS r
         LEFT JOIN room_role AS rr ON rr.room_id = r.id AND rr.user_id = $1
         LEFT JOIN role_name AS rn ON rr.role_id = rn.id
-        LEFT JOIN mute AS m ON m.room_id = r.id AND rr.user_id = $1
+        LEFT JOIN mute AS m ON m.room_id = r.id AND m.user_id = $1
         WHERE r.id = $2
     `)
     if err != nil {

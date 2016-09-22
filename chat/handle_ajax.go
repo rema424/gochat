@@ -24,10 +24,10 @@ func handlerAjaxGetRoomUsers(w http.ResponseWriter, r *http.Request) {
     users := hub.room.getUsers()
 
     resp, err := json.Marshal(users)
-
     if err != nil {
         log.Println("JSON encoding error", err)
     }
+
     w.Header().Set("Content-Type", "application/json")
     w.Write(resp)
 }

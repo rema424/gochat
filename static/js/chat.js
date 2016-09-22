@@ -89,7 +89,7 @@ function addUser(user) {
         $opt.addClass('moder');
     }
 
-    if (user.mute) {
+    if (user.mute_date) {
         $opt.addClass('muted');
     }
 
