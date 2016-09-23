@@ -47,7 +47,6 @@ func (c *Client) readWS() {
     c.conn.SetReadLimit(maxMessageSize)
     c.conn.SetReadDeadline(time.Now().Add(pongWait))
     c.conn.SetPongHandler(func(string) error {
-        log.Println(c.user.Username+": pong")
         c.conn.SetReadDeadline(time.Now().Add(pongWait))
         return nil
     })
@@ -80,7 +79,7 @@ func (c *Client) readWS() {
             if c.user.checkPrivilege(msg.Action) {
                 user, err := getUserById(msg.Recipient.Id)
                 if err != nil {
-                    log.Println("User manage error: ", err)
+                    log.Println("Unknown user: ", err)
                     return
                 }
                 room := c.hub.room
@@ -137,7 +136,6 @@ func (c *Client) writeWS() {
             if err != nil {
                 return
             }
-            log.Println(c.user.Username+": ping")
         }
     }
 }

@@ -8,7 +8,6 @@ import (
     "log"
     "math/rand"
     "net/http"
-    "strings"
     "time"
 
     "github.com/gorilla/context"
@@ -30,23 +29,14 @@ func makeSession(w http.ResponseWriter, user *User) error {
     key := makeSessionKey()
     exp := time.Now().Add(365 * 24 * time.Hour)
 
-    stmt, err := db.Prepare(`
-        INSERT INTO auth_session
-        (key, user_id, create_date, expire_date)
-        VALUES
-        ($1, $2, CURRENT_TIMESTAMP, $3)
-    `)
-    if err != nil {
-        return err
-    }
-    _, err = stmt.Exec(&key, &user.Id, &exp)
+    _, err := stmtMakeSession.Exec(&key, &user.Id, &exp)
     if err != nil {
         return err
     }
 
     cookie := http.Cookie{
         Name: "SessionID",
-        Value: user.Username + ":" + key,
+        Value: key,
         Expires: exp,
     }
     http.SetCookie(w, &cookie)
@@ -62,23 +52,10 @@ func removeSession(w http.ResponseWriter, r *http.Request) error {
         return errors.New("No cookie found")
     }
 
-    session := strings.Split(cookie.Value, ":")
-    username := session[0]
-    sessionId := session[1]
+    sessionId := cookie.Value
+    _, err = stmtDeleteSession.Exec(sessionId)
 
-    stmt, err := db.Prepare(`
-        DELETE FROM auth_session
-        WHERE
-            user_id = (
-                SELECT id FROM auth_user WHERE username = $1
-            )
-            AND key = $2
-    `)
-    if err != nil {
-        return err
-    }
-    _, err = stmt.Exec(&username, &sessionId)
-
+    // Clear cookie
     cookie = &http.Cookie{
         Name: "SessionID",
         Value: "",
@@ -90,31 +67,16 @@ func removeSession(w http.ResponseWriter, r *http.Request) error {
 }
 
 
-// Check session cookie
-func checkSession(r *http.Request) (*User, error) {
+// Check session cookie and get user from database
+func getUserFromSession(r *http.Request) (*User, error) {
     cookie, err := r.Cookie("SessionID")
     if err != nil {
         return nil, errors.New("No cookie found")
     }
 
-    session := strings.Split(cookie.Value, ":")
-    username := session[0]
-    sessionId := session[1]
-
-    stmt, err := db.Prepare(`
-        SELECT u.id, u.full_name, u.username, u.email
-        FROM auth_session AS s
-        LEFT JOIN auth_user AS u ON u.id = s.user_id
-        WHERE u.username = $1
-            AND s.key = $2
-            AND s.expire_date > CURRENT_TIMESTAMP
-    `)
-    if err != nil {
-        return nil, err
-    }
-
+    sessionId := cookie.Value
     var user User
-    err = stmt.QueryRow(username, sessionId).Scan(
+    err = stmtGetUserBySession.QueryRow(sessionId).Scan(
         &user.Id, &user.Fullname, &user.Username, &user.Email,
     )
     if err == sql.ErrNoRows {
@@ -129,18 +91,9 @@ func checkSession(r *http.Request) (*User, error) {
 
 // Check user's credentials
 func authenticate(username string, password string) (*User, error) {
-    stmt, err := db.Prepare(`
-        SELECT id, full_name, username, email, password, role
-        FROM auth_user
-        WHERE username = $1
-    `)
-    if err != nil {
-        return nil, err
-    }
-
     var user User
     var userPassword string
-    err = stmt.QueryRow(username).Scan(
+    err := stmtGetUserByUsername.QueryRow(username).Scan(
         &user.Id,
         &user.Fullname,
         &user.Username,
@@ -165,8 +118,7 @@ func authenticate(username string, password string) (*User, error) {
 // Middleware for authentication
 func authMiddleware(handler http.HandlerFunc) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
-        // Check auth
-        user, err := checkSession(r)
+        user, err := getUserFromSession(r)
 
         // User is not authenticated
         if err != nil {

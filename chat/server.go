@@ -6,13 +6,9 @@ import (
     "log"
     "net/http"
     "os"
-    "database/sql"
 
     _ "github.com/lib/pq"
 )
-
-// Global connection to DB
-var db *sql.DB
 
 // Global storage of hubs (one per room)
 // Room.Id: *Hub
@@ -20,7 +16,7 @@ var hubs = make(map[int]*Hub)
 
 
 // Log either to file or to stdout
-func setLogOutput(mode string, dir string, file string) (*os.File, error) {
+func setLogOutput(mode string, dir string, file string) *os.File {
     var f *os.File
 
     if mode == "file" {
@@ -32,14 +28,14 @@ func setLogOutput(mode string, dir string, file string) (*os.File, error) {
         // Write logs to file
         f, err = os.OpenFile(dir+"/"+file, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0600)
         if err != nil {
-            return nil, err
+            log.Fatal("Init logging failed: ", err)
         }
         log.SetOutput(f)
     } else if mode == "stdout" {
         log.SetOutput(os.Stdout)
     }
 
-    return f, nil
+    return f
 }
 
 
@@ -59,14 +55,12 @@ func RunServer(settings map[string]string) {
     var err error
 
     // Logs
-    f, err := setLogOutput(
+    f := setLogOutput(
         settings["logMode"],
         settings["logDir"],
         settings["logFile"],
     )
-    if err != nil {
-        panic(err.Error())
-    } else if f != nil {
+    if f != nil {
         defer f.Close()
     }
 
@@ -74,24 +68,22 @@ func RunServer(settings map[string]string) {
     setStaticMode(settings["staticMode"])
 
     // DB connect (using global variable)
-    db, err = dbConnect(
+    db = dbConnect(
         settings["dbUser"],
         settings["dbPass"],
         settings["dbName"],
     )
-    if err != nil {
-        panic(err.Error())
-    } else {
-        log.Println("DB connected successfully")
-        defer db.Close()
-    }
+    log.Println("DB connected successfully")
+    defer db.Close()
 
-    // Messages exchanging (websockets) for each room
+    // Prepare SQL statements
+    initStmts()
+
+    // Run messages exchanging (websockets) for each room
     rooms, err := getAllRooms()
     if err != nil {
-        panic(err.Error())
+        log.Fatal("Could not get the list of rooms")
     }
-
     for _, room := range rooms {
         hub := makeHub(room)
         hubs[room.Id] = hub
@@ -106,6 +98,6 @@ func RunServer(settings map[string]string) {
     log.Printf("Server is running on %s port...\n", port)
     err = http.ListenAndServe(":"+port, nil)
     if err != nil {
-        log.Println("ListenAndServe error: ", err)
+        log.Fatal("ListenAndServe error: ", err)
     }
 }

@@ -3,7 +3,6 @@
 package chat
 
 import (
-    "database/sql"
     "errors"
     "log"
     "time"
@@ -18,44 +17,24 @@ type Room struct {
 
 // If user is muted in this room
 func (r *Room) checkMute(userId int) (bool, error) {
-    stmt, err := db.Prepare(`
-        SELECT 1
-        FROM mute
-        WHERE user_id = $1 AND room_id = $2
-    `)
+    var isMuted bool
+    err := stmtCheckMute.QueryRow(userId, r.Id).Scan(&isMuted)
     if err != nil {
         return false, err
-    }
-
-    err = stmt.QueryRow(userId, r.Id).Scan()
-    if err == sql.ErrNoRows {
-        return false, nil
-    } else if err != nil {
-        return false, err
     } else {
-        return true, nil
+        return isMuted, nil
     }
 }
 
 
 // If user is banned in this room
 func (r *Room) checkBan(userId int) (bool, error) {
-    stmt, err := db.Prepare(`
-        SELECT 1
-        FROM ban
-        WHERE user_id = $1 AND room_id = $2
-    `)
+    var isBanned bool
+    err := stmtCheckBan.QueryRow(userId, r.Id).Scan(&isBanned)
     if err != nil {
         return false, err
-    }
-
-    err = stmt.QueryRow(userId, r.Id).Scan()
-    if err == sql.ErrNoRows {
-        return false, nil
-    } else if err != nil {
-        return false, err
     } else {
-        return true, nil
+        return isBanned, nil
     }
 }
 
@@ -70,23 +49,12 @@ func (r *Room) manage(admin *User, user *User, act string) error {
         if err != nil {
             return err
         }
-        var stmt *sql.Stmt
-        if isMuted {
-            stmt, err = db.Prepare(`
-                DELETE FROM mute
-                WHERE user_id = $1 AND room_id = $2
-            `)
-        } else {
-            stmt, err = db.Prepare(`
-                INSERT INTO mute (user_id, room_id)
-                VALUES ($1, $2)
-            `)
-        }
-        if err != nil {
-            return err
-        }
 
-        _, err = stmt.Exec(user.Id, r.Id)
+        if isMuted {
+            _, err = stmtUnmute.Exec(user.Id, r.Id)
+        } else {
+            _, err = stmtMute.Exec(user.Id, r.Id)
+        }
         if err != nil {
             return err
         }
@@ -100,7 +68,7 @@ func (r *Room) manage(admin *User, user *User, act string) error {
             Room: r,
         }
         r.hub.message <- msg
-        log.Println("Muted: "+user.Username)
+        log.Println("Mute: "+user.Username, !isMuted)
 
         return nil
 
@@ -131,13 +99,12 @@ func (r *Room) manage(admin *User, user *User, act string) error {
         return nil
     }
 
-
     return errors.New("Wrong action: "+act)
 }
 
 
 func (r *Room) getUsers() []*User {
-    var users []*User
+    users := []*User{}
     for c := range(r.hub.clients) {
         u := c.user
         u.addRoomInfo(r.Id)
@@ -149,30 +116,9 @@ func (r *Room) getUsers() []*User {
 
 
 func (r *Room) getMessages(user *User, limit int) ([]*Message, error) {
-    var messages []*Message
+    messages := []*Message{}
 
-    stmt, err := db.Prepare(`
-        SELECT *
-        FROM (
-            SELECT u.id, u.username, u.full_name, u.email, rn.name AS role,
-                m.id, 'message', m.text, m.send_date,
-                m.recipient_id IS NULL
-            FROM message AS m
-            LEFT JOIN auth_user AS u ON u.id = m.sender_id
-            LEFT JOIN room_role AS rr ON rr.room_id = m.room_id AND rr.user_id = u.id
-            LEFT JOIN role_name AS rn ON rr.role_id = rn.id
-            WHERE (m.recipient_id = $1 OR m.recipient_id IS NULL)
-                AND m.room_id = $2
-            ORDER BY m.send_date DESC
-            LIMIT $3
-        ) AS tmp
-        ORDER BY send_date ASC
-    `)
-    if err != nil {
-        return messages, err
-    }
-
-    rows, err := stmt.Query(user.Id, r.Id, limit)
+    rows, err := stmtGetMessages.Query(user.Id, r.Id, limit)
     if rows != nil {
         defer rows.Close()
     } else {
@@ -208,15 +154,7 @@ func (r *Room) getMessages(user *User, limit int) ([]*Message, error) {
 func getAllRooms() ([]*Room, error) {
     var rooms []*Room
 
-    stmt, err := db.Prepare(`
-        SELECT id, name
-        FROM room
-    `)
-    if err != nil {
-        return rooms, err
-    }
-
-    rows, err := stmt.Query()
+    rows, err := stmtGetAllRooms.Query()
     if rows != nil {
         defer rows.Close()
     } else {

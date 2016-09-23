@@ -5,7 +5,6 @@ package chat
 import (
     "encoding/json"
     "time"
-    "database/sql"
 )
 
 
@@ -58,30 +57,12 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 
     // Get full recipient info from database
     if tmp.Recipient != nil {
-        var recipient User
-        stmt, err := db.Prepare(`
-            SELECT id, username, full_name, email, role
-            FROM auth_user
-            WHERE id = $1
-        `)
+        recipient, err := getUserById(tmp.Recipient.Id)
         if err != nil {
             return err
         }
 
-        err = stmt.QueryRow(tmp.Recipient.Id).Scan(
-            &recipient.Id,
-            &recipient.Username,
-            &recipient.Fullname,
-            &recipient.Email,
-            &recipient.Role,
-        )
-        if err == sql.ErrNoRows {
-            return nil
-        } else if err != nil {
-            return err
-        }
-
-        m.Recipient = &recipient
+        m.Recipient = recipient
     }
 
     return nil
@@ -90,22 +71,12 @@ func (m *Message) UnmarshalJSON(data []byte) error {
 
 // TODO: Add insert/update argument
 func (m *Message) save() error {
-    stmt, err := db.Prepare(`
-        INSERT INTO message
-        (room_id, sender_id, recipient_id, text, send_date)
-        VALUES
-        ($1, $2, $3, $4, $5)
-    `)
-    if err != nil {
-        return err
-    }
-
     var recipientId *int
     if m.Recipient != nil {
         recipientId = &m.Recipient.Id
     }
 
-    _, err = stmt.Exec(
+    _, err := stmtInsertMessage.Exec(
         m.Room.Id, m.Sender.Id, recipientId, m.Text, m.SendDate,
     )
     if err != nil {

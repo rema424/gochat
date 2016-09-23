@@ -70,11 +70,13 @@ func (h *Hub) run() {
             client := reg.client
             log.Println("Registered: "+client.user.Username)
             h.clients[client] = true
+            u := client.user
+            u.addRoomInfo(h.room.Id)
 
             // Tell everyone (except new user) about new user
             msg := &Message{
                 Action: "new_user",
-                Sender: client.user,
+                Sender: u,
                 Text: client.user.Username + " joined the room",
                 SendDate: time.Now().UTC(),
             }
