@@ -82,14 +82,15 @@ CREATE TABLE db_version (
 
 -- Populate
 
+-- password: 123
 INSERT INTO auth_user (id, full_name, username, email, password, role)
-    VALUES (1, 'Administrator', 'admin', 'admin@gochat.local', '123', 'admin');
+    VALUES (1, 'Administrator', 'admin', 'admin@gochat.local', '$2a$04$keYMUR/q8vvXuA9ooJjqi.yYigZYdqTUTS9BNB4kVWn0itJSrK5Uy', 'admin');
 INSERT INTO auth_user (id, full_name, username, email, password, role)
-    VALUES (2, 'Moderator', 'moder', 'moder@gochat.local', '123', 'moder');
+    VALUES (2, 'Moderator', 'moder', 'moder@gochat.local', '$2a$04$keYMUR/q8vvXuA9ooJjqi.yYigZYdqTUTS9BNB4kVWn0itJSrK5Uy', 'moder');
 INSERT INTO auth_user (id, full_name, username, email, password, role)
-    VALUES (3, 'User #1', 'user1', 'user1@gochat.local', '123', 'user');
+    VALUES (3, 'User #1', 'user1', 'user1@gochat.local', '$2a$04$keYMUR/q8vvXuA9ooJjqi.yYigZYdqTUTS9BNB4kVWn0itJSrK5Uy', 'user');
 INSERT INTO auth_user (id, full_name, username, email, password, role)
-    VALUES (4, 'User #2', 'user2', 'user2@gochat.local', '123', 'user');
+    VALUES (4, 'User #2', 'user2', 'user2@gochat.local', '$2a$04$keYMUR/q8vvXuA9ooJjqi.yYigZYdqTUTS9BNB4kVWn0itJSrK5Uy', 'user');
 
 INSERT INTO room (id, name, create_date) VALUES (1, 'Room #1', CURRENT_TIMESTAMP);
 INSERT INTO room (id, name, create_date) VALUES (2, 'Room #2', CURRENT_TIMESTAMP);

@@ -11,6 +11,7 @@ import (
     "time"
 
     "github.com/gorilla/context"
+    "golang.org/x/crypto/bcrypt"
 )
 
 
@@ -92,14 +93,13 @@ func getUserFromSession(r *http.Request) (*User, error) {
 // Check user's credentials
 func authenticate(username string, password string) (*User, error) {
     var user User
-    var userPassword string
+    var hash string
     err := stmtGetUserByUsername.QueryRow(username).Scan(
         &user.Id,
         &user.Fullname,
         &user.Username,
         &user.Email,
-        &userPassword,
-        &user.Role,
+        &hash,
     )
     if err == sql.ErrNoRows {
         return nil, errors.New("Login or password incorrect")
@@ -107,7 +107,8 @@ func authenticate(username string, password string) (*User, error) {
         return nil, err
     }
 
-    if userPassword == password {
+    err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+    if err == nil {
         return &user, nil
     } else {
         return nil, errors.New("Login or password incorrect")
