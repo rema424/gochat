@@ -53,7 +53,7 @@ func handlerChatPage(w http.ResponseWriter, r *http.Request) {
     room := hubs[roomId].room
     isBanned, err := room.checkBan(u.Id)
     if err != nil {
-        log.Println("Checking ban error: ", err)
+        log.Println("Checking ban error:", err)
         return
     }
     if isBanned {
@@ -63,7 +63,7 @@ func handlerChatPage(w http.ResponseWriter, r *http.Request) {
 
     err = u.addRoomInfo(room.Id)
     if err != nil {
-        log.Println("Add room info error: ", err)
+        log.Println("Add room info error:", err)
         return
     }
 
@@ -89,7 +89,7 @@ func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
 
     rooms, err := getAllRooms()
     if err != nil {
-        log.Println("Getting rooms error: ", err)
+        log.Println("Getting rooms error:", err)
         return
     }
 

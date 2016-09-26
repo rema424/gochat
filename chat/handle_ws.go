@@ -34,9 +34,31 @@ type Client struct {
 }
 
 
+// End client's session mith given bye-message
+func (c *Client) kill(msg *Message) {
+    msgJson, err := json.Marshal(msg)
+    if err != nil {
+        log.Println("JSON encoding error:", err)
+        return
+    }
+
+    err = c.conn.WriteMessage(
+        websocket.TextMessage,
+        msgJson,
+    )
+    if err != nil {
+        log.Println("Bye-message write error:", err)
+        return
+    }
+
+    c.conn.Close()
+}
+
+
 func (c *Client) readWS() {
     defer func() {
-        c.conn.Close()
+        // This will make effect only if client has gone unexpectedly.
+        // Otherwise another message will be sent first.
         un := &Unreg{
             client: c,
             msg: c.user.Username + " has gone",
@@ -55,7 +77,7 @@ func (c *Client) readWS() {
         _, data, err := c.conn.ReadMessage()
         if err != nil {
             if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-                log.Println("Read error: ", err)
+                log.Println("Read error:", err)
             }
             return
         }
@@ -63,7 +85,7 @@ func (c *Client) readWS() {
         var msg Message
         err = json.Unmarshal(data, &msg)
         if err != nil {
-            log.Println("JSON decode error: ", err)
+            log.Println("JSON decode error:", err)
             return
         }
 
@@ -79,17 +101,17 @@ func (c *Client) readWS() {
             if c.user.checkPrivilege(msg.Action) {
                 user, err := getUserById(msg.Recipient.Id)
                 if err != nil {
-                    log.Println("Unknown user: ", err)
+                    log.Println("Unknown user:", err)
                     return
                 }
                 room := c.hub.room
                 err = room.manage(c.user, user, msg.Action)
                 if err != nil {
-                    log.Println("User manage error: ", err)
+                    log.Println("User manage error:", err)
                     return
                 }
             } else {
-                log.Println("Not enough rights for action: "+msg.Action)
+                log.Println("Not enough rights for action:", msg.Action)
                 return
             }
         }
@@ -102,7 +124,6 @@ func (c *Client) writeWS() {
 
     defer func() {
         ticker.Stop()
-        c.conn.Close()
         un := &Unreg{
             client: c,
             msg: c.user.Username + " has gone",
@@ -116,7 +137,7 @@ func (c *Client) writeWS() {
         case msg := <-c.message:
             msgJson, err := json.Marshal(msg)
             if err != nil {
-                log.Println("JSON encoding error: ", err)
+                log.Println("JSON encoding error:", err)
                 continue
             }
 
@@ -125,15 +146,18 @@ func (c *Client) writeWS() {
                 msgJson,
             )
             if err != nil {
-                log.Println("Write error: ", err)
-                c.conn.Close()
-                delete(c.hub.clients, c)
+                log.Println("Message write error:", err)
+                return
             }
 
         // Heartbeat
         case <- ticker.C:
-            err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
+            err := c.conn.WriteMessage(
+                websocket.PingMessage,
+                []byte{},
+            )
             if err != nil {
+                log.Println("Ping write error:", err)
                 return
             }
         }
@@ -145,20 +169,20 @@ func handlerWS(w http.ResponseWriter, r *http.Request) {
     p := strings.Split(r.URL.Path, "/")
     roomId, err := strconv.Atoi(p[len(p)-1])
     if err != nil {
-        log.Println("Invalid room ID: ", err)
+        log.Println("Invalid room ID:", err)
         return
     }
 
     // Get hub from global hubs map
     hub, ok := hubs[roomId]
     if !ok {
-        log.Println("No hub for this room: ", err)
+        log.Println("No hub for this room:", err)
         return
     }
 
     conn, err := upgrader.Upgrade(w, r, nil)
     if err != nil {
-        log.Println("Open connection error: ", err)
+        log.Println("Open connection error:", err)
         return
     }
     log.Println("Successfully connected")

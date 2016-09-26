@@ -27,6 +27,7 @@ type Unreg struct {
     msg    string
 }
 
+
 func makeHub(room *Room) *Hub {
     h := &Hub{
         clients: make(map[*Client]bool),
@@ -68,7 +69,7 @@ func (h *Hub) run() {
         // Add client to chat
         case reg := <-h.register:
             client := reg.client
-            log.Println("Registered: "+client.user.Username)
+            log.Println("Registered:", client.user.Username)
             h.clients[client] = true
             u := client.user
             u.addRoomInfo(h.room.Id)
@@ -88,7 +89,7 @@ func (h *Hub) run() {
             msg := unreg.msg
             _, alive := h.clients[client]
             if alive {
-                log.Println("Unregistered: "+client.user.Username)
+                log.Println("Unregistered:", client.user.Username)
 
                 // Tell everyone about user has gone
                 msg := &Message{
@@ -99,7 +100,7 @@ func (h *Hub) run() {
                 }
                 h.send(msg)
 
-                client.conn.Close()
+                client.kill(msg)
                 delete(h.clients, client)
             }
 
@@ -115,14 +116,23 @@ func (h *Hub) run() {
             if msg.Action == "message" {
                 err := msg.save()
                 if err != nil {
-                    log.Println("Saving message error: ", err)
+                    log.Println("Saving message error:", err)
                     continue
                 }
 
                 if msg.Recipient != nil {
-                    log.Println(msg.Sender.Username+" TO "+msg.Recipient.Username+": "+msg.Text)
+                    log.Printf(
+                        "%s TO %s: %s",
+                        msg.Sender.Username,
+                        msg.Recipient.Username,
+                        msg.Text,
+                    )
                 } else {
-                    log.Println(msg.Sender.Username+": "+msg.Text)
+                    log.Printf(
+                        "%s: %s",
+                        msg.Sender.Username,
+                        msg.Text,
+                    )
                 }
             }
 

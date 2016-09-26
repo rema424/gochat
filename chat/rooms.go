@@ -42,6 +42,7 @@ func (r *Room) checkBan(userId int) (bool, error) {
 // Mute, kick, ban
 func (r *Room) manage(admin *User, user *User, act string) error {
     var t string
+    var logMsg string
 
     switch act {
     case "mute":
@@ -52,8 +53,10 @@ func (r *Room) manage(admin *User, user *User, act string) error {
 
         if isMuted {
             _, err = stmtUnmute.Exec(user.Id, r.Id)
+            logMsg = "Unmuted: "
         } else {
             _, err = stmtMute.Exec(user.Id, r.Id)
+            logMsg = "Muted: "
         }
         if err != nil {
             return err
@@ -68,7 +71,7 @@ func (r *Room) manage(admin *User, user *User, act string) error {
             Room: r,
         }
         r.hub.message <- msg
-        log.Println("Mute: "+user.Username, !isMuted)
+        log.Println(logMsg+user.Username)
 
         return nil
 
@@ -77,7 +80,7 @@ func (r *Room) manage(admin *User, user *User, act string) error {
             if c.user.Id == user.Id {
                 un := &Unreg{
                     client: c,
-                    msg: user.Username + " has been kicked",
+                    msg: user.Username + " has been kicked by " + admin.Username,
                 }
                 r.hub.unregister <- un
             }

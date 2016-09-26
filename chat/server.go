@@ -28,7 +28,7 @@ func setLogOutput(mode string, dir string, file string) *os.File {
         // Write logs to file
         f, err = os.OpenFile(dir+"/"+file, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0600)
         if err != nil {
-            log.Fatal("Init logging failed: ", err)
+            log.Fatal("Init logging failed:", err)
         }
         log.SetOutput(f)
     } else if mode == "stdout" {
@@ -98,6 +98,6 @@ func RunServer(settings map[string]string) {
     log.Printf("Server is running on %s port...\n", port)
     err = http.ListenAndServe(":"+port, nil)
     if err != nil {
-        log.Fatal("ListenAndServe error: ", err)
+        log.Fatal("ListenAndServe error:", err)
     }
 }

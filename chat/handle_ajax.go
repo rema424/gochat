@@ -25,7 +25,7 @@ func handlerAjaxGetRoomUsers(w http.ResponseWriter, r *http.Request) {
 
     resp, err := json.Marshal(users)
     if err != nil {
-        log.Println("JSON encoding error", err)
+        log.Println("JSON encoding error:", err)
     }
 
     w.Header().Set("Content-Type", "application/json")

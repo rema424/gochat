@@ -60,6 +60,7 @@ func initStmts() {
             email = $4
         WHERE id = $1
     `)
+
     // Authentication
     stmtMakeSession = prepareStmt(db, `
         INSERT INTO auth_session
@@ -78,6 +79,7 @@ func initStmts() {
         DELETE FROM auth_session
         WHERE key = $1
     `)
+
     // Rooms
     stmtGetAllRooms = prepareStmt(db, `
         SELECT id, name
@@ -96,6 +98,7 @@ func initStmts() {
         LEFT JOIN mute AS m ON m.room_id = r.id AND m.user_id = $1
         WHERE r.id = $2
     `)
+
     // Room administration (mute, ban)
     stmtCheckMute = prepareStmt(db, `
         SELECT EXISTS(
@@ -119,6 +122,7 @@ func initStmts() {
             WHERE user_id = $1 AND room_id = $2
         )
     `)
+
     // Messages
     stmtGetMessages =prepareStmt(db, `
         SELECT *
@@ -152,11 +156,11 @@ func dbConnect(dbUser string, dbPass string, dbName string) *sql.DB {
     dbConnection := fmt.Sprintf("user=%s password=%s dbname=%s", dbUser, dbPass, dbName)
     db, err = sql.Open("postgres", dbConnection)
     if err != nil {
-        log.Fatal("DB connection failed: ", err)
+        log.Fatal("DB connection failed:", err)
     }
     err = db.Ping()
     if err != nil {
-        log.Fatal("DB ping failed: ", err)
+        log.Fatal("DB ping failed:", err)
     }
 
     return db
