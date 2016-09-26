@@ -5,7 +5,6 @@ package chat
 import (
     "database/sql"
     "time"
-    // "log"
 )
 
 
@@ -53,6 +52,24 @@ func (u *User) addRoomInfo(roomId int) error {
         return err
     } else {
         return nil
+    }
+}
+
+
+// Terminate all connections of this user
+func (u *User) logout() {
+    un := &Unreg{
+        msg: u.Username + " has gone due to another connection",
+    }
+
+    for _, h := range hubs {
+        for c := range h.clients {
+            if c.user.Id == u.Id {
+                un.client = c
+                c.hub.unregister <- un
+                break
+            }
+        }
     }
 }
 

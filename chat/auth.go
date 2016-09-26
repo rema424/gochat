@@ -30,7 +30,13 @@ func makeSession(w http.ResponseWriter, user *User) error {
     key := makeSessionKey()
     exp := time.Now().Add(365 * 24 * time.Hour)
 
-    _, err := stmtMakeSession.Exec(&key, &user.Id, &exp)
+    // Delete other user's sessions (only 1 session per user)
+    _, err := stmtDeleteUserSessions.Exec(user.Id)
+    if err != nil {
+        return err
+    }
+
+    _, err = stmtMakeSession.Exec(&key, &user.Id, &exp)
     if err != nil {
         return err
     }

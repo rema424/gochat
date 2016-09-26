@@ -62,7 +62,7 @@ socket.onerror = function (error) {
 // Get all users of the room
 function getAllUsers() {
     $.getJSON({
-        url: '/ajax//rooms/' + currentRoom.id + '/users',
+        url: '/ajax/rooms/' + currentRoom.id + '/users',
         dataType: 'json',
         success: function(response) {
             response.forEach(function (user) {
@@ -180,6 +180,9 @@ function processMessage(msg) {
             msgString = formatMessage(msg.text, 'info');
             showMessage(msgString);
             break;
+
+        case 'logout':
+            window.location.href = '/login';
 
         case 'mute':
             $userlist

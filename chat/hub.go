@@ -86,7 +86,7 @@ func (h *Hub) run() {
         // Remove client from chat
         case unreg := <-h.unregister:
             client := unreg.client
-            msg := unreg.msg
+            t := unreg.msg
             _, alive := h.clients[client]
             if alive {
                 log.Println("Unregistered:", client.user.Username)
@@ -95,7 +95,7 @@ func (h *Hub) run() {
                 msg := &Message{
                     Action: "gone_user",
                     Sender: client.user,
-                    Text: msg,
+                    Text: t,
                     SendDate: time.Now().UTC(),
                 }
                 h.send(msg)

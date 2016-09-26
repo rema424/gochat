@@ -14,20 +14,26 @@ var (
     // Global connection to DB
     db *sql.DB
 
-    stmtGetUserById       *sql.Stmt
-    stmtGetUserByUsername *sql.Stmt
-    stmtMakeSession       *sql.Stmt
-    stmtCheckMute         *sql.Stmt
-    stmtCheckBan          *sql.Stmt
-    stmtGetAllRooms       *sql.Stmt
-    stmtUpdateUser        *sql.Stmt
-    stmtGetUserRoomInfo   *sql.Stmt
-    stmtDeleteSession     *sql.Stmt
-    stmtGetUserBySession  *sql.Stmt
-    stmtInsertMessage     *sql.Stmt
-    stmtUnmute            *sql.Stmt
-    stmtMute              *sql.Stmt
-    stmtGetMessages       *sql.Stmt
+    // Users
+    stmtGetUserById        *sql.Stmt
+    stmtGetUserByUsername  *sql.Stmt
+    stmtUpdateUser         *sql.Stmt
+    // Authentication
+    stmtMakeSession        *sql.Stmt
+    stmtGetUserBySession   *sql.Stmt
+    stmtDeleteSession      *sql.Stmt
+    stmtDeleteUserSessions *sql.Stmt
+    // Rooms
+    stmtGetAllRooms        *sql.Stmt
+    stmtGetUserRoomInfo    *sql.Stmt
+    // Room administration (mute, ban)
+    stmtCheckMute          *sql.Stmt
+    stmtMute               *sql.Stmt
+    stmtUnmute             *sql.Stmt
+    stmtCheckBan           *sql.Stmt
+    // Messages
+    stmtInsertMessage      *sql.Stmt
+    stmtGetMessages        *sql.Stmt
 )
 
 
@@ -78,6 +84,10 @@ func initStmts() {
     stmtDeleteSession = prepareStmt(db, `
         DELETE FROM auth_session
         WHERE key = $1
+    `)
+    stmtDeleteUserSessions = prepareStmt(db, `
+        DELETE FROM auth_session
+        WHERE user_id = $1
     `)
 
     // Rooms

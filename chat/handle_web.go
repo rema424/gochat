@@ -25,6 +25,8 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
         if err != nil {
             ctx["err"] = err.Error()
         } else {
+            // Kill all other connections and make new one
+            user.logout()
             makeSession(w, user)
             http.Redirect(w, r, "/", 302)
             return

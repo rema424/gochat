@@ -90,7 +90,9 @@ func (c *Client) readWS() {
         }
 
         msg.Room = c.hub.room
-        msg.Recipient.addRoomInfo(msg.Room.Id)
+        if msg.Recipient != nil {
+            msg.Recipient.addRoomInfo(msg.Room.Id)
+        }
 
         switch msg.Action {
         // Regular chat message
