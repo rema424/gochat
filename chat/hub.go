@@ -104,36 +104,36 @@ func (h *Hub) run() {
                 delete(h.clients, client)
             }
 
-        // Send message to all and save it to DB as broadcast
-        // message (no recipient and recieve date)
+        // Information messages
+        case msg := <-h.info:
+            h.send(msg)
+
+        // Send message to all and save it to DB
         case msg := <-h.message:
             // If user is muted - do nothing
             if msg.Sender.MuteDate != nil {
                 continue
             }
 
-            // Store only users' messages in DB
-            if msg.Action == "message" {
-                err := msg.save()
-                if err != nil {
-                    log.Println("Saving message error:", err)
-                    continue
-                }
+            err := msg.save()
+            if err != nil {
+                log.Println("Saving message error:", err)
+                continue
+            }
 
-                if msg.Recipient != nil {
-                    log.Printf(
-                        "%s TO %s: %s",
-                        msg.Sender.Username,
-                        msg.Recipient.Username,
-                        msg.Text,
-                    )
-                } else {
-                    log.Printf(
-                        "%s: %s",
-                        msg.Sender.Username,
-                        msg.Text,
-                    )
-                }
+            if msg.Recipient != nil {
+                log.Printf(
+                    "%s TO %s: %s",
+                    msg.Sender.Username,
+                    msg.Recipient.Username,
+                    msg.Text,
+                )
+            } else {
+                log.Printf(
+                    "%s: %s",
+                    msg.Sender.Username,
+                    msg.Text,
+                )
             }
 
             h.send(msg)

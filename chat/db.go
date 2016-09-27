@@ -134,7 +134,7 @@ func initStmts() {
     `)
 
     // Messages
-    stmtGetMessages =prepareStmt(db, `
+    stmtGetMessages = prepareStmt(db, `
         SELECT *
         FROM (
             SELECT u.id, u.username, u.full_name, u.email, rn.name AS role,
@@ -168,6 +168,7 @@ func dbConnect(dbUser string, dbPass string, dbName string) *sql.DB {
     if err != nil {
         log.Fatal("DB connection failed:", err)
     }
+
     err = db.Ping()
     if err != nil {
         log.Fatal("DB ping failed:", err)

@@ -5,6 +5,9 @@ package main
 import "gochat/chat"
 
 var settings = map[string]string{
+    // Main port
+    "port":       "8080",
+
     // Logs
     "logMode":    "stdout",     // or "file"
     "logDir":     "logs",       // necessary only if logsMode = "file"

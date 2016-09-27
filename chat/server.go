@@ -6,6 +6,7 @@ import (
     "log"
     "net/http"
     "os"
+    "path"
 
     _ "github.com/lib/pq"
 )
@@ -20,16 +21,24 @@ func setLogOutput(mode string, dir string, file string) *os.File {
     var f *os.File
 
     if mode == "file" {
-        // Make logs dirs if it's not already exists
+        // Make logs dir if it doesn't exist yet
         _, err := os.Stat(dir)
         if os.IsNotExist(err) {
             os.Mkdir(dir, 0700)
+        } else if err != nil {
+            log.Fatal("Init logging failed:", err)
         }
+
         // Write logs to file
-        f, err = os.OpenFile(dir+"/"+file, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0600)
+        f, err = os.OpenFile(
+            path.Join(dir, file),
+            os.O_RDWR | os.O_CREATE | os.O_APPEND,
+            0600,
+        )
         if err != nil {
             log.Fatal("Init logging failed:", err)
         }
+
         log.SetOutput(f)
     } else if mode == "stdout" {
         log.SetOutput(os.Stdout)
@@ -79,6 +88,9 @@ func RunServer(settings map[string]string) {
     // Prepare SQL statements
     initStmts()
 
+    // Parse HTML-templates
+    initTpls()
+
     // Run messages exchanging (websockets) for each room
     rooms, err := getAllRooms()
     if err != nil {
@@ -90,13 +102,12 @@ func RunServer(settings map[string]string) {
         go hub.run()
     }
 
-    // Bind routes to URLs
+    // Bind handlers to URLs
     makeRouter()
 
     // Run server
-    port := "8080"
-    log.Printf("Server is running on %s port...\n", port)
-    err = http.ListenAndServe(":"+port, nil)
+    log.Printf("Server is running on %s port...\n", settings["port"])
+    err = http.ListenAndServe(":"+settings["port"], nil)
     if err != nil {
         log.Fatal("ListenAndServe error:", err)
     }

@@ -58,10 +58,13 @@ func (u *User) addRoomInfo(roomId int) error {
 
 // Terminate all connections of this user
 func (u *User) logout() {
+    stmtDeleteUserSessions.Exec(u.Id)
+
     un := &Unreg{
         msg: u.Username + " has gone due to another connection",
     }
 
+    // Send unregister message to each hub with this user
     for _, h := range hubs {
         for c := range h.clients {
             if c.user.Id == u.Id {

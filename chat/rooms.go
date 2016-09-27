@@ -3,6 +3,7 @@
 package chat
 
 import (
+    "database/sql"
     "errors"
     "log"
     "time"
@@ -41,8 +42,8 @@ func (r *Room) checkBan(userId int) (bool, error) {
 
 // Mute, kick, ban
 func (r *Room) manage(admin *User, user *User, act string) error {
-    var t string
-    var logMsg string
+    var text string
+    var title string
 
     switch act {
     case "mute":
@@ -53,10 +54,10 @@ func (r *Room) manage(admin *User, user *User, act string) error {
 
         if isMuted {
             _, err = stmtUnmute.Exec(user.Id, r.Id)
-            logMsg = "Unmuted: "
+            title = "Unmuted: "
         } else {
             _, err = stmtMute.Exec(user.Id, r.Id)
-            logMsg = "Muted: "
+            title = "Muted: "
         }
         if err != nil {
             return err
@@ -66,12 +67,12 @@ func (r *Room) manage(admin *User, user *User, act string) error {
             Action: "mute",
             Sender: admin,
             Recipient: user,
-            Text: t,
+            Text: text,
             SendDate: time.Now().UTC(),
             Room: r,
         }
-        r.hub.message <- msg
-        log.Println(logMsg+user.Username)
+        r.hub.info <- msg
+        log.Println(title+user.Username)
 
         return nil
 
@@ -122,10 +123,12 @@ func (r *Room) getMessages(user *User, limit int) ([]*Message, error) {
     messages := []*Message{}
 
     rows, err := stmtGetMessages.Query(user.Id, r.Id, limit)
-    if rows != nil {
-        defer rows.Close()
+    if err == sql.ErrNoRows {
+        return []*Message{}, nil
+    } else if err != nil {
+        return []*Message{}, err
     } else {
-        return messages, nil
+        defer rows.Close()
     }
 
     var msg *Message
@@ -139,7 +142,7 @@ func (r *Room) getMessages(user *User, limit int) ([]*Message, error) {
             &sender.Id, &sender.Username, &sender.Fullname, &sender.Email, &sender.Role,
             &msg.Id, &msg.Action, &msg.Text, &msg.SendDate, &isBroadcast)
         if err != nil {
-            return messages, err
+            return []*Message{}, err
         }
         msg.Sender = sender
         if !isBroadcast {
@@ -155,13 +158,15 @@ func (r *Room) getMessages(user *User, limit int) ([]*Message, error) {
 
 
 func getAllRooms() ([]*Room, error) {
-    var rooms []*Room
+    rooms := []*Room{}
 
     rows, err := stmtGetAllRooms.Query()
-    if rows != nil {
-        defer rows.Close()
+    if err == sql.ErrNoRows {
+        return []*Room{}, nil
+    } else if err != nil {
+        return []*Room{}, err
     } else {
-        return rooms, nil
+        defer rows.Close()
     }
 
     var room *Room
@@ -169,7 +174,7 @@ func getAllRooms() ([]*Room, error) {
         room = &Room{}
         err = rows.Scan(&room.Id, &room.Name)
         if err != nil {
-            return rooms, err
+            return []*Room{}, err
         }
         rooms = append(rooms, room)
     }

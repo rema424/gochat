@@ -4,7 +4,6 @@ package chat
 
 import (
     "net/http"
-    "html/template"
     "log"
     "strconv"
 
@@ -26,6 +25,7 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
             ctx["err"] = err.Error()
         } else {
             // Kill all other connections and make new one
+            // because only 1 session per user allowed
             user.logout()
             makeSession(w, user)
             http.Redirect(w, r, "/", 302)
@@ -33,8 +33,7 @@ func handlerLoginPage(w http.ResponseWriter, r *http.Request) {
         }
     }
 
-    tpl, _ := template.ParseFiles("templates/login.html", "templates/base.html")
-    tpl.ExecuteTemplate(w, "base", ctx)
+    tplLogin.ExecuteTemplate(w, "base", ctx)
 }
 
 
@@ -76,8 +75,7 @@ func handlerChatPage(w http.ResponseWriter, r *http.Request) {
         u,
         room,
     }
-    tpl, _ := template.ParseFiles("templates/chat.html", "templates/base.html")
-    tpl.ExecuteTemplate(w, "base", ctx)
+    tplChat.ExecuteTemplate(w, "base", ctx)
 }
 
 
@@ -102,6 +100,5 @@ func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
         context.Get(r, "User").(*User),
         rooms,
     }
-    tpl, _ := template.ParseFiles("templates/index.html", "templates/base.html")
-    tpl.ExecuteTemplate(w, "base", ctx)
+    tplIndex.ExecuteTemplate(w, "base", ctx)
 }
