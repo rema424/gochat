@@ -15,25 +15,26 @@ var (
     db *sql.DB
 
     // Users
-    stmtGetUserById        *sql.Stmt
-    stmtGetUserByUsername  *sql.Stmt
-    stmtUpdateUser         *sql.Stmt
+    stmtGetUserById           *sql.Stmt
+    stmtGetUserByUsername     *sql.Stmt
     // Authentication
-    stmtMakeSession        *sql.Stmt
-    stmtGetUserBySession   *sql.Stmt
-    stmtDeleteSession      *sql.Stmt
-    stmtDeleteUserSessions *sql.Stmt
+    stmtMakeSession           *sql.Stmt
+    stmtGetUserBySession      *sql.Stmt
+    stmtDeleteSession         *sql.Stmt
+    stmtDeleteUserSessions    *sql.Stmt
     // Rooms
-    stmtGetAllRooms        *sql.Stmt
-    stmtGetUserRoomInfo    *sql.Stmt
+    stmtGetAllRooms           *sql.Stmt
+    stmtGetUserRooms          *sql.Stmt
+    stmtGetUserRoomInfo       *sql.Stmt
     // Room administration (mute, ban)
-    stmtCheckMute          *sql.Stmt
-    stmtMute               *sql.Stmt
-    stmtUnmute             *sql.Stmt
-    stmtCheckBan           *sql.Stmt
+    stmtCheckMute             *sql.Stmt
+    stmtMute                  *sql.Stmt
+    stmtUnmute                *sql.Stmt
+    stmtCheckBan              *sql.Stmt
+    stmtBan                   *sql.Stmt
     // Messages
-    stmtInsertMessage      *sql.Stmt
-    stmtGetMessages        *sql.Stmt
+    stmtInsertMessage         *sql.Stmt
+    stmtGetRoomMessagesByUser *sql.Stmt
 )
 
 
@@ -57,14 +58,6 @@ func initStmts() {
         SELECT id, full_name, username, email, password
         FROM auth_user
         WHERE username = $1
-    `)
-    stmtUpdateUser = prepareStmt(db, `
-        UPDATE auth_user
-        SET
-            full_name = $2,
-            username = $3,
-            email = $4
-        WHERE id = $1
     `)
 
     // Authentication
@@ -94,6 +87,14 @@ func initStmts() {
     stmtGetAllRooms = prepareStmt(db, `
         SELECT id, name
         FROM room
+    `)
+    stmtGetUserRooms = prepareStmt(db, `
+        SELECT r.id, r.name,
+            CASE WHEN b.id IS NOT NULL THEN true
+            ELSE false
+            END AS is_banned
+        FROM room AS r
+        LEFT JOIN ban AS b ON b.room_id = r.id AND b.user_id = $1
     `)
     stmtGetUserRoomInfo = prepareStmt(db, `
         SELECT
@@ -132,19 +133,33 @@ func initStmts() {
             WHERE user_id = $1 AND room_id = $2
         )
     `)
+    stmtBan = prepareStmt(db, `
+        INSERT INTO ban (user_id, room_id)
+        VALUES ($1, $2)
+    `)
 
-    // Messages
-    stmtGetMessages = prepareStmt(db, `
+    // Messages in room: for the user, from the user or broadcast
+    stmtGetRoomMessagesByUser = prepareStmt(db, `
         SELECT *
         FROM (
-            SELECT u.id, u.username, u.full_name, u.email, rn.name AS role,
+            SELECT
                 m.id, 'message', m.text, m.send_date,
-                m.recipient_id IS NULL
+                us.id, us.username, us.full_name, us.email, us_rn.name AS role,
+                ur.id, ur.username, ur.full_name, ur.email, ur_rn.name AS role
             FROM message AS m
-            LEFT JOIN auth_user AS u ON u.id = m.sender_id
-            LEFT JOIN room_role AS rr ON rr.room_id = m.room_id AND rr.user_id = u.id
-            LEFT JOIN role_name AS rn ON rr.role_id = rn.id
-            WHERE (m.recipient_id = $1 OR m.recipient_id IS NULL)
+            -- Sender
+            LEFT JOIN auth_user AS us ON us.id = m.sender_id
+            LEFT JOIN room_role AS us_rr ON us_rr.room_id = m.room_id AND us_rr.user_id = us.id
+            LEFT JOIN role_name AS us_rn ON us_rr.role_id = us_rn.id
+            -- Recipient
+            LEFT JOIN auth_user AS ur ON ur.id = m.recipient_id
+            LEFT JOIN room_role AS ur_rr ON ur_rr.room_id = m.room_id AND ur_rr.user_id = ur.id
+            LEFT JOIN role_name AS ur_rn ON ur_rr.role_id = ur_rn.id
+            WHERE
+                (
+                    (m.recipient_id = $1 OR m.recipient_id IS NULL)
+                    OR m.sender_id = $1
+                )
                 AND m.room_id = $2
             ORDER BY m.send_date DESC
             LIMIT $3

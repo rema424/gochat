@@ -71,7 +71,7 @@ func (r *Room) manage(admin *User, user *User, act string) error {
             SendDate: time.Now().UTC(),
             Room: r,
         }
-        r.hub.info <- msg
+        r.hub.ctl <- msg
         log.Println(title+user.Username)
 
         return nil
@@ -86,12 +86,17 @@ func (r *Room) manage(admin *User, user *User, act string) error {
                 r.hub.unregister <- un
             }
         }
-        log.Println("Kicked: "+user.Username)
+        log.Println("Kicked:", user.Username)
         return nil
 
     case "ban":
         for c := range r.hub.clients {
             if c.user.Id == user.Id {
+                _, err := stmtBan.Exec(user.Id, r.Id)
+                if err != nil {
+                    return err
+                }
+
                 un := &Unreg{
                     client: c,
                     msg: user.Username + " has been banned",
@@ -99,7 +104,7 @@ func (r *Room) manage(admin *User, user *User, act string) error {
                 r.hub.unregister <- un
             }
         }
-
+        log.Println("Banned:", user.Username)
         return nil
     }
 
@@ -122,7 +127,7 @@ func (r *Room) getUsers() []*User {
 func (r *Room) getMessages(user *User, limit int) ([]*Message, error) {
     messages := []*Message{}
 
-    rows, err := stmtGetMessages.Query(user.Id, r.Id, limit)
+    rows, err := stmtGetRoomMessagesByUser.Query(user.Id, r.Id, limit)
     if err == sql.ErrNoRows {
         return []*Message{}, nil
     } else if err != nil {
@@ -132,28 +137,73 @@ func (r *Room) getMessages(user *User, limit int) ([]*Message, error) {
     }
 
     var msg *Message
-    var sender *User
-    var isBroadcast bool
+    var sId, rId *int
+    var sUsername, sFullname, sEmail, sRole *string
+    var rUsername, rFullname, rEmail, rRole *string
 
     for rows.Next() {
-        sender = &User{}
         msg = &Message{}
         err = rows.Scan(
-            &sender.Id, &sender.Username, &sender.Fullname, &sender.Email, &sender.Role,
-            &msg.Id, &msg.Action, &msg.Text, &msg.SendDate, &isBroadcast)
+            // Message info
+            &msg.Id, &msg.Action, &msg.Text, &msg.SendDate,
+            // Sender
+            &sId, &sUsername, &sFullname, &sEmail, &sRole,
+            // Recipient
+            &rId, &rUsername, &rFullname, &rEmail, &rRole,
+        )
         if err != nil {
             return []*Message{}, err
         }
-        msg.Sender = sender
-        if !isBroadcast {
-            msg.Recipient = user
-            msg.Recipient.addRoomInfo(r.Id)
+        if sId != nil {
+            msg.Sender = &User{
+                Id: *sId,
+                Username: *sUsername,
+                Fullname: *sFullname,
+                Email: *sEmail,
+                Role: *sRole,
+            }
+        }
+        if rId != nil {
+            msg.Recipient = &User{
+                Id: *rId,
+                Username: *rUsername,
+                Fullname: *rFullname,
+                Email: *rEmail,
+                Role: *rRole,
+            }
         }
 
         messages = append(messages, msg)
     }
 
     return messages, nil
+}
+
+
+func getUserRooms(userId int) (map[*Room]bool, error) {
+    rooms := make(map[*Room]bool)
+
+    rows, err := stmtGetUserRooms.Query(userId)
+    if err == sql.ErrNoRows {
+        return map[*Room]bool{}, nil
+    } else if err != nil {
+        return map[*Room]bool{}, err
+    } else {
+        defer rows.Close()
+    }
+
+    var room *Room
+    var isBanned bool
+    for rows.Next() {
+        room = &Room{}
+        err = rows.Scan(&room.Id, &room.Name, &isBanned)
+        if err != nil {
+            return map[*Room]bool{}, err
+        }
+        rooms[room] = isBanned
+    }
+
+    return rooms, nil
 }
 
 

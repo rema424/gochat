@@ -35,13 +35,8 @@ func (m *Message) MarshalJSON() ([]byte, error) {
 // find recipient by id in database
 func (m *Message) UnmarshalJSON(data []byte) error {
     type Alias Message
-
-    // Temporary structure for marshalling JSON
     tmp := &struct {
-        SendDate  int64      `json:"send_date"`
-        Recipient *struct {
-            Id    int        `json:"id"`
-        }                    `json:"recipient"`
+        Date int64 `json:"date"`
         *Alias
     }{
         Alias: (*Alias)(m),
@@ -56,13 +51,11 @@ func (m *Message) UnmarshalJSON(data []byte) error {
     m.SendDate = time.Now().UTC()
 
     // Get full recipient info from database
-    if tmp.Recipient != nil {
-        recipient, err := getUserById(tmp.Recipient.Id)
+    if m.Recipient != nil {
+        m.Recipient, err = getUserById(m.Recipient.Id)
         if err != nil {
             return err
         }
-
-        m.Recipient = recipient
     }
 
     return nil

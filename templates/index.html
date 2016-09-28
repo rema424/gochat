@@ -4,8 +4,14 @@
 
 {{define "content"}}
 <div class="page col-md-12">
-    {{range $room := .Rooms}}
-        <h1><a href="/chat/rooms/{{$room.Id}}">{{$room.Name}}</a></h1>
+    {{range $room, $isBanned := .Rooms}}
+        {{if $isBanned}}
+            <h1 class="text-muted">{{$room.Name}}</h1>
+        {{else}}
+            <h1>
+                <a href="/chat/rooms/{{$room.Id}}">{{$room.Name}}</a>
+            </h1>
+        {{end}}
     {{end}}
 </div>
 {{end}}

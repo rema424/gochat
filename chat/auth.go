@@ -17,7 +17,8 @@ import (
 
 func makeSessionKey() string {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    key := make([]byte, 64)
+    const l = 64  // key length
+    key := make([]byte, l)
     for i := range key {
         key[i] = chars[rand.Intn(len(chars))]
     }

@@ -7,10 +7,10 @@ import (
     "log"
     "net/http"
     "strconv"
-    "strings"
     "time"
 
     "github.com/gorilla/context"
+    "github.com/gorilla/mux"
     "github.com/gorilla/websocket"
 )
 
@@ -57,7 +57,7 @@ func (c *Client) kill(msg *Message) {
 
 func (c *Client) readWS() {
     defer func() {
-        // This will make effect only if client has gone unexpectedly.
+        // This will take effect only if client has gone unexpectedly.
         // Otherwise another message will be sent first.
         un := &Unreg{
             client: c,
@@ -102,15 +102,9 @@ func (c *Client) readWS() {
         // Control message from admin/moder
         case "mute", "kick", "ban":
             if c.user.checkPrivilege(msg.Action) {
-                user, err := getUserById(msg.Recipient.Id)
+                err = c.hub.room.manage(c.user, msg.Recipient, msg.Action)
                 if err != nil {
-                    log.Println("Unknown user:", err)
-                    return
-                }
-                room := c.hub.room
-                err = room.manage(c.user, user, msg.Action)
-                if err != nil {
-                    log.Println("User manage error:", err)
+                    log.Println("User management error:", err)
                     return
                 }
             } else {
@@ -169,17 +163,15 @@ func (c *Client) writeWS() {
 
 
 func handlerWS(w http.ResponseWriter, r *http.Request) {
-    p := strings.Split(r.URL.Path, "/")
-    roomId, err := strconv.Atoi(p[len(p)-1])
-    if err != nil {
-        log.Println("Invalid room ID:", err)
-        return
-    }
+    vars := mux.Vars(r)
+
+    // No need to check errors - regex in mux validates input
+    roomId, _ := strconv.Atoi(vars["id"])
 
     // Get hub from global hubs map
     hub, ok := hubs[roomId]
     if !ok {
-        log.Println("No hub for this room:", err)
+        log.Println("No hub for room ID"+string(roomId))
         return
     }
 

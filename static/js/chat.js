@@ -47,7 +47,6 @@ socket.onclose = function (event) {
 
 socket.onmessage = function (event) {
     var msg = JSON.parse(event.data);
-    console.log(msg);
     processMessage(msg);
 };
 
@@ -99,7 +98,6 @@ function addUser(user) {
 // Remove user from userlist
 function removeUser(user) {
     delete allUsers[user.id];
-
     $userlist
         .find('option[value="' + user.id + '"]')
         .remove();
@@ -110,14 +108,17 @@ function removeUser(user) {
 //
 
 function getLastMessages() {
+    // Number of last messages from server
+    var number = 10;
+
     // Get last messages
     $.getJSON({
-        url: '/ajax/rooms/' + currentRoom.id + '/messages',
+        url: '/ajax/rooms/' + currentRoom.id + '/messages?number=' + number,
         dataType: 'json',
         success: function(response) {
             response.forEach(function (msg) {
                 processMessage(msg);
-            })
+            });
         },
         error: function(response) {
             console.log(response);

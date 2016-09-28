@@ -26,19 +26,6 @@ var permissions = map[string][]string{
 }
 
 
-// TODO: Add insert/update argument
-func (u *User) save() error {
-    _, err := stmtUpdateUser.Exec(
-        &u.Id, &u.Fullname, &u.Username, &u.Email,
-    )
-    if err != nil {
-        return err
-    }
-
-    return nil
-}
-
-
 // Check if user can do action
 func (u *User) checkPrivilege(act string) bool {
     return contains(permissions[u.Role], act)

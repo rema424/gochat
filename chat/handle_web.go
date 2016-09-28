@@ -48,7 +48,7 @@ func handlerChatPage(w http.ResponseWriter, r *http.Request) {
     vars := mux.Vars(r)
     u := context.Get(r, "User").(*User)
 
-    // No need to check errors - regex in mux controlls input
+    // No need to check errors - regex in mux validates input
     roomId, _ := strconv.Atoi(vars["id"])
 
     room := hubs[roomId].room
@@ -86,8 +86,9 @@ func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Not found", 404)
         return
     }
+    u := context.Get(r, "User").(*User)
 
-    rooms, err := getAllRooms()
+    rooms, err := getUserRooms(u.Id)
     if err != nil {
         log.Println("Getting rooms error:", err)
         return
@@ -95,9 +96,9 @@ func handlerIndexPage(w http.ResponseWriter, r *http.Request) {
 
     ctx := struct {
         User *User
-        Rooms []*Room
+        Rooms map[*Room]bool
     } {
-        context.Get(r, "User").(*User),
+        u,
         rooms,
     }
     tplIndex.ExecuteTemplate(w, "base", ctx)

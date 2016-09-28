@@ -13,7 +13,7 @@ type Hub struct {
     clients    map[*Client]bool
     room       *Room
     message    chan *Message
-    info       chan *Message
+    ctl        chan *Message
     register   chan *Reg
     unregister chan *Unreg
 }
@@ -33,6 +33,7 @@ func makeHub(room *Room) *Hub {
         clients: make(map[*Client]bool),
         room: room,
         message: make(chan *Message),
+        ctl: make(chan *Message),
         register:  make(chan *Reg),
         unregister: make(chan *Unreg),
     }
@@ -44,11 +45,12 @@ func makeHub(room *Room) *Hub {
 }
 
 
+// Send message to all clients
 func (h *Hub) send(msg *Message) {
     for client := range h.clients {
-        // Gone messages are sent to everyone (including sender)
-        toAll := contains([]string{"gone_user", "mute", "ban"}, msg.Action)
-        // Don't send self messages
+        // These messages are sent to everyone including sender
+        toAll := contains([]string{"mute", "ban"}, msg.Action)
+        // Don't send messages to sender
         toSelf := msg.Sender != nil && client.user.Id == msg.Sender.Id
         // Send only to recipient or if it is broadcast
         isBroadcast := msg.Recipient == nil
@@ -105,10 +107,10 @@ func (h *Hub) run() {
             }
 
         // Information messages
-        case msg := <-h.info:
-            h.send(msg)
+        case ctl := <-h.ctl:
+            h.send(ctl)
 
-        // Send message to all and save it to DB
+        // Chat messages: send to all and save to DB
         case msg := <-h.message:
             // If user is muted - do nothing
             if msg.Sender.MuteDate != nil {
