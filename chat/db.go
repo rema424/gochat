@@ -8,11 +8,14 @@ import (
     "database/sql"
 
     _ "github.com/lib/pq"
+    "github.com/garyburd/redigo/redis"
 )
 
 var (
     // Global connection to DB
     db *sql.DB
+    // Global in-memory storage connection
+    store redis.Conn
 
     // Users
     stmtGetUserById           *sql.Stmt
@@ -190,4 +193,12 @@ func dbConnect(dbUser string, dbPass string, dbName string) *sql.DB {
     }
 
     return db
+}
+
+func storeConnect(proto string, srv string) redis.Conn {
+    c, err := redis.Dial(proto, srv)
+    if err != nil {
+        log.Fatal("In-memory store connection failed:", err)
+    }
+    return c
 }

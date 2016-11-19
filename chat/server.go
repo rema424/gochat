@@ -85,6 +85,13 @@ func RunServer(settings map[string]string) {
     log.Println("DB connected successfully")
     defer db.Close()
 
+    store = storeConnect(
+        settings["storeProto"],
+        settings["storeServer"],
+    )
+    log.Println("In-memory storage connected successfully")
+    defer store.Close()
+
     // Prepare SQL statements
     initStmts()
 

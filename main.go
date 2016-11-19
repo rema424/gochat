@@ -20,6 +20,10 @@ var settings = map[string]string{
     "dbUser":     "pguser",
     "dbPass":     "123",
     "dbName":     "db_gochat",
+
+    // Redis settings
+    "storeProto": "tcp",
+    "storeServer": "localhost:6379",
 }
 
 func main() {
